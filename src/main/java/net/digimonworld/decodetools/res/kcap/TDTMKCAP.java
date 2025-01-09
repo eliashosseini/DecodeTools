@@ -1,5 +1,8 @@
 package net.digimonworld.decodetools.res.kcap;
 
+import static de.javagl.jgltf.model.GltfConstants.GL_ARRAY_BUFFER;
+import static de.javagl.jgltf.model.GltfConstants.GL_FLOAT;
+
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
@@ -17,10 +20,6 @@ import de.javagl.jgltf.impl.v2.Buffer;
 import de.javagl.jgltf.impl.v2.BufferView;
 import de.javagl.jgltf.impl.v2.GlTF;
 import de.javagl.jgltf.impl.v2.Sampler;
-
-import static de.javagl.jgltf.model.GltfConstants.GL_FLOAT;
-import static de.javagl.jgltf.model.GltfConstants.GL_ARRAY_BUFFER;
-
 import net.digimonworld.decodetools.Main;
 import net.digimonworld.decodetools.core.Access;
 import net.digimonworld.decodetools.core.Utils;
@@ -151,18 +150,17 @@ public class TDTMKCAP extends AbstractKCAP {
             AnimationChannelTarget act = new AnimationChannelTarget();
             act.setNode(jointId); // Set Node
 
-            switch(tEntry.mode) {
-                case TRANSLATION:
-                    act.setPath("translation");
-                    break;
-                case ROTATION:
-                    act.setPath("rotation");
-                    break;
-                case SCALE:
-                case LOCAL_SCALE:
-                    act.setPath("scale");
-                    break;
-            }
+            float[] x_times = new float[0];
+            float[] x_values = new float[0];
+
+            float[] y_times =  new float[0];
+            float[] y_values = new float[0];
+
+            float[] z_times = new float[0];
+            float[] z_values = new float[0];
+
+            float[] w_times = new float[0];
+            float[] w_values = new float[0];
 
             // Linear 1D by default
             InterpolationMode interMode = InterpolationMode.LINEAR_1D;
@@ -213,37 +211,148 @@ public class TDTMKCAP extends AbstractKCAP {
                 }
                 
                 // Convert frames to seconds
-
-                float[] frametimes = new float[frames.length];
-
+                float animDuration = time2-time1;
+                float[] timestamps = new float[frames.length];
+                
                 for (int k = 0; k < frames.length; k++) {
-                    frametimes[k] = (float) (frames[k] / 30.0);
+                    timestamps[k] = (float) (animDuration * frames[k])/frames[frames.length-1];
                 }
 
-                // Create a buffer and accessor with the time stamps
-                int timeBuffer = arrayToBuffer(frametimes, instance);
-                int timeBufferView = createBufferView(timeBuffer, GL_ARRAY_BUFFER, "timeBV_"+i+"_"+j, instance);
-                int timeAccessor = createAccessor(timeBufferView, GL_FLOAT, frametimes.length, "SCALAR", "timeAccessor_"+i+"_"+j, instance);
+                switch(axis) {
+                    case X:
+                        x_times = timestamps;
+                        x_values = frameData;
+                        break;
+                    case Y:
+                        y_times = timestamps;
+                        y_values = frameData;
+                        break;
+                    case Z:
+                        z_times = timestamps;
+                        z_values = frameData;
+                        break;
+                    case W:
+                        w_times = timestamps;
+                        w_values = frameData;
+                        break;
+                    default:
+                        x_times = timestamps;
+                        x_values = frameData;
+                        break;
+                }
 
-                // Create a buffer and accessor with the values
-                int valBuffer = arrayToBuffer(frameData, instance);
-                int valBufferView = createBufferView(valBuffer, GL_ARRAY_BUFFER, "valueBV_"+i+"_"+j, instance);
-                int valAccessor = createAccessor(valBufferView, GL_FLOAT, frameData.length, "SCALAR", "valueAccessor_"+i+"_"+j, instance);
+                System.out.println("Joint: " + jointId + ", Duration: " + animDuration);
+                System.out.println("Axis: " + axis + ", Interpolation Mode: " + interMode + ", Time Scale: " + timeScale);
 
-                // Set them to be the input and output of the animation sampler
-                AnimationSampler as = new AnimationSampler();
-                as.setInterpolation("LINEAR");
-                as.setInput(timeAccessor);
-                as.setOutput(valAccessor);
-
-                System.out.println("Joint: " + jointId + ", Interpolation Mode: " + interMode + ", Time Scale: " + timeScale);
-
-                System.out.println("QSTM " + j + ": " + qEntry.getType() + ", Axis: " + axis);
+                System.out.println("QSTM " + j + ": " + qEntry.getType());
 
                 for (int k = 0; k < frames.length; k++) {
-                    System.out.println(frames[k] + ": " + frameData[k]);
+                    System.out.println(timestamps[k] + ": " + frameData[k]);
                 }
                 
+            }
+
+            // Create a buffer and accessor with the time stamps
+            int timeBuffer = arrayToBuffer(x_times, instance);
+            int timeBufferView = createBufferView(timeBuffer, GL_ARRAY_BUFFER, "timeBV_"+i, instance);
+            int timeAccessor = createAccessor(timeBufferView, GL_FLOAT, x_times.length, "SCALAR", "timeAccessor_"+i, instance);
+
+            // Set them to be the input and output of the animation sampler
+            AnimationSampler as = new AnimationSampler();
+            as.setInterpolation("LINEAR");
+            as.setInput(timeAccessor);
+
+            int valBuffer;
+            int valBufferView;
+            int valAccessor;
+            float[][] vector = new float[3][];
+            int maxSize = 0;
+
+            maxSize = Math.max(x_values.length, y_values.length);
+            maxSize = Math.max(maxSize, z_values.length);
+            maxSize = Math.max(maxSize, w_values.length);
+
+            float[] new_x_values = new float[maxSize];
+            float[] new_y_values = new float[maxSize];
+            float[] new_z_values = new float[maxSize];
+            float[] new_w_values = new float[maxSize];
+
+            for (int j = 0; j < maxSize; j++) {
+                if (j < x_values.length) {
+                    new_x_values[j] = x_values[j];
+                }
+                else {
+                    new_x_values[j] = 0;
+                }
+
+                if (j < y_values.length) {
+                    new_y_values[j] = y_values[j];
+                }
+                else {
+                    new_y_values[j] = 0;
+                }
+
+                if (j < z_values.length) {
+                    new_z_values[j] = z_values[j];
+                }
+                else {
+                    new_z_values[j] = 0;
+                }
+
+                if (j < w_values.length) {
+                    new_w_values[j] = w_values[j];
+                }
+                else {
+                    new_w_values[j] = 0;
+                }
+            }
+
+            switch(tEntry.mode) {
+                case TRANSLATION:
+                    act.setPath("translation");
+
+                    vector[0] = new_x_values;
+                    vector[1] = new_y_values;
+                    vector[2] = new_z_values;
+
+                    // Create a buffer and accessor with the values
+                    valBuffer = vectorToBuffer(vector, instance);
+                    valBufferView = createBufferView(valBuffer, GL_ARRAY_BUFFER, "valueBV_"+i, instance);
+                    valAccessor = createAccessor(valBufferView, GL_FLOAT, vector.length, "VEC3", "valueAccessor_"+i, instance);
+                    
+                    as.setOutput(valAccessor);
+                    break;
+                case ROTATION:
+                    act.setPath("rotation");
+
+                    vector = new float[4][];
+                    vector[0] = new_x_values;
+                    vector[1] = new_y_values;
+                    vector[2] = new_z_values;
+                    vector[3] = new_w_values;
+
+                    // Create a buffer and accessor with the values
+                    valBuffer = vectorToBuffer(vector, instance);
+                    valBufferView = createBufferView(valBuffer, GL_ARRAY_BUFFER, "valueBV_"+i, instance);
+                    valAccessor = createAccessor(valBufferView, GL_FLOAT, vector.length, "VEC4", "valueAccessor_"+i, instance);
+                    
+                    as.setOutput(valAccessor);
+                    break;
+                case SCALE:
+                case LOCAL_SCALE:
+                    act.setPath("scale");
+
+                    vector[0] = new_x_values;
+                    vector[1] = new_y_values;
+                    vector[2] = new_z_values;
+
+                    // Create a buffer and accessor with the values
+                    valBuffer = vectorToBuffer(vector, instance);
+                    valBufferView = createBufferView(valBuffer, GL_ARRAY_BUFFER, "valueBV_"+i, instance);
+                    valAccessor = createAccessor(valBufferView, GL_FLOAT, vector.length, "VEC3", "valueAccessor_"+i, instance);
+                    
+                    as.setOutput(valAccessor);
+                    break;
             }
 
             Sampler sampler = new Sampler();
@@ -276,6 +385,25 @@ public class TDTMKCAP extends AbstractKCAP {
         Buffer gltfBuffer = new Buffer();
         gltfBuffer.setUri(GLTFExporter.BUFFER_URI + Base64.getEncoder().encodeToString(mBuffer.array()));
         gltfBuffer.setByteLength(arr.length*4);
+        instance.addBuffers(gltfBuffer);
+
+        return instance.getBuffers().size() - 1;
+    }
+
+    private int vectorToBuffer(float[][] vec, GlTF instance) {
+        ByteBuffer mBuffer = ByteBuffer.allocate(vec.length*vec[0].length*4);
+        mBuffer.order(ByteOrder.LITTLE_ENDIAN);
+
+        for (int i = 0; i < vec.length; i++) {
+            for (int j = 0; j < vec[0].length; j++) {
+                mBuffer.putFloat(vec[i][j]);
+            }
+        }
+        //mBuffer.flip();
+
+        Buffer gltfBuffer = new Buffer();
+        gltfBuffer.setUri(GLTFExporter.BUFFER_URI + Base64.getEncoder().encodeToString(mBuffer.array()));
+        gltfBuffer.setByteLength(vec.length*vec[0].length*4);
         instance.addBuffers(gltfBuffer);
 
         return instance.getBuffers().size() - 1;
