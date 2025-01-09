@@ -49,7 +49,12 @@ import de.javagl.jgltf.impl.v2.Texture;
 import de.javagl.jgltf.impl.v2.TextureInfo;
 import de.javagl.jgltf.model.io.GltfWriter;
 import net.digimonworld.decodetools.core.Vector4;
+import net.digimonworld.decodetools.res.ResPayload;
+import net.digimonworld.decodetools.res.ResPayload.Payload;
 import net.digimonworld.decodetools.res.kcap.HSMPKCAP;
+import net.digimonworld.decodetools.res.kcap.TDTMKCAP;
+import net.digimonworld.decodetools.res.kcap.AbstractKCAP.KCAPType;
+import net.digimonworld.decodetools.res.kcap.AbstractKCAP;
 import net.digimonworld.decodetools.res.payload.GMIOPayload;
 import net.digimonworld.decodetools.res.payload.GMIOPayload.TextureFiltering;
 import net.digimonworld.decodetools.res.payload.GMIOPayload.TextureWrap;
@@ -68,10 +73,12 @@ import net.digimonworld.decodetools.res.payload.xtvo.XTVORegisterType;
 import net.digimonworld.decodetools.res.payload.xtvo.XTVOVertex;
 
 public class GLTFExporter {
-    private static final String BUFFER_URI = "data:application/octet-stream;base64,";
+    public static final String BUFFER_URI = "data:application/octet-stream;base64,";
 
     private final HSMPKCAP hsmp;
     private final GlTF instance;
+
+    private List<TDTMKCAP> tdtms;
 
     private Map<Short, Short> jointAssignment = new HashMap<>();
     private Map<Short, Short> textureAssignment = new HashMap<>();
@@ -82,6 +89,38 @@ public class GLTFExporter {
 
     public GLTFExporter(HSMPKCAP hsmp) {
         this.hsmp = hsmp;
+
+        List<ResPayload> otherPayloads = hsmp.getParent().getEntries();
+        tdtms = new ArrayList<>();
+
+        boolean hsmpflag1 = false; // matching hsmp found
+        boolean hsmpflag2 = false; // hsmp found after tdtms
+
+        // Get all TDTM KCAPs following HSMP until it hits another HSMP
+        for (int i = 0; i < otherPayloads.size(); i++) {
+            if (otherPayloads.get(i).getType() == Payload.KCAP) {
+                if (hsmpflag1 && !hsmpflag2) {
+                    if (((AbstractKCAP)otherPayloads.get(i)).getKCAPType() == KCAPType.TDTM) {
+                        TDTMKCAP tdtm = (TDTMKCAP)otherPayloads.get(i);
+                        tdtms.add(tdtm);
+                    }
+                }
+                if (!hsmpflag1) {
+                    if (((AbstractKCAP)otherPayloads.get(i)).getKCAPType() == KCAPType.HSMP) {
+                        HSMPKCAP hsmp2 = (HSMPKCAP)otherPayloads.get(i);
+                        if (hsmp == hsmp2) {
+                            hsmpflag1 = true;
+                        }
+                    }
+                }
+                else {
+                    if (((AbstractKCAP)otherPayloads.get(i)).getKCAPType() == KCAPType.HSMP) {
+                        hsmpflag2 = true;
+                    }
+                }
+            }
+        }
+
         this.instance = new GlTF();
 
         initialize();
@@ -104,6 +143,7 @@ public class GLTFExporter {
         createJoints();
         createLocations();
         createGeometry();
+        createAnimations();
 
         Scene scene = new Scene();
         rootNode.setName(hsmp.getName());
@@ -246,6 +286,15 @@ public class GLTFExporter {
                 if (parent != null)
                     parent.addChildren(instance.getNodes().size() - 1);
             }
+        }
+    }
+
+    // Generate animations
+    private void createAnimations() {
+        for(int i = 0; i < tdtms.size(); i++) {
+            TDTMKCAP tdtm = tdtms.get(i);
+
+            tdtm.exportGLTFAnimation(instance);
         }
     }
 

@@ -1,5 +1,7 @@
 package net.digimonworld.decodetools.res.payload;
 
+import java.nio.ByteBuffer;
+
 import net.digimonworld.decodetools.core.Access;
 import net.digimonworld.decodetools.core.Utils;
 import net.digimonworld.decodetools.res.ResData;
@@ -91,9 +93,120 @@ public class VCTMPayload extends ResPayload {
         
         source.setPosition(Utils.align(source.getPosition(), 0x04));
     }
+
+    public float[] getFrameList() {
+        float[] frames = new float[numEntries];
+
+        // TODO: Account for time type?
+        System.out.println("Time Type: " + timeType);
+
+        for (int i = 0; i < numEntries; i++) {
+            byte[] data = data1[i].getData();
+
+            if (data.length < 4) {
+                byte[] newData = new byte[4];
+                for (int j = 1; j <= 4; j++) {
+                    if (j > data.length) {
+                        newData[newData.length-j] = 0x00;
+                    }
+                    else {
+                        newData[newData.length-j] = data[data.length-j]; 
+                    }
+                }
+
+                data = newData;
+            }
+            frames[i] = (float)ByteBuffer.wrap(data).getInt();
+
+            StringBuilder sb = new StringBuilder();
+            for (byte b : data) {
+                sb.append(String.format("%02X ", b));
+            }
+            System.out.println(sb.toString() + " = " + frames[i]);
+        }
+
+        return frames;
+    }
+
+    public float[] getFrameDataList() {
+        float[] frameData = new float[numEntries];
+
+        // TODO: Account for Component Type?
+        System.out.println("Component Type: " + componentType);
+
+        for (int i = 0; i < numEntries; i++) {
+            byte[] data = data2[i].getData();
+            reverseArray(data);
+
+            switch(componentType) {
+                case FLOAT32:
+                    frameData[i] = ByteBuffer.wrap(data).getFloat();
+                    break;
+                case FLOAT16:
+                    byte[] float16data = new byte[4];
+                    float16data[0] = 0x00;
+                    float16data[1] = 0x00;
+                    float16data[2] = data[0];
+                    float16data[3] = data[1];
+                    
+                    frameData[i] =  ByteBuffer.wrap(float16data).getFloat();
+                    break;
+                case INT16:
+                case INT8:
+                    frameData[i] = (float)ByteBuffer.wrap(data).getInt();
+                    break;
+                case UINT16:
+                    byte[] uint16data = new byte[4];
+                    uint16data[0] = 0x00;
+                    uint16data[1] = 0x00;
+                    uint16data[2] = data[0];
+                    uint16data[3] = data[1];
+                    
+                    frameData[i] = (float)ByteBuffer.wrap(uint16data).getInt();
+                    data = uint16data;
+                    break;
+                case UINT8:
+                    byte[] uint8data = new byte[4];
+                    uint8data[0] = 0x00;
+                    uint8data[1] = 0x00;
+                    uint8data[2] = 0x00;
+                    uint8data[3] = data[0];
+                    
+                    frameData[i] = (float)ByteBuffer.wrap(uint8data).getInt();
+                    data = uint8data;
+                    break;
+                default:
+                    frameData[i] = 0;
+            }
+
+            StringBuilder sb = new StringBuilder();
+            for (byte b : data) {
+                sb.append(String.format("%02X ", b));
+            }
+            System.out.println(sb.toString() + " = " + frameData[i]);
+        }
+
+        return frameData;
+    }
+
+    private void reverseArray(byte arr[]) {
+        byte temp;
+
+        int len2 = arr.length >> 1;
+
+        for (int i = 0; i < len2; i++) {
+            temp = arr[i];
+            arr[i] = arr[arr.length - i - 1];
+            arr[arr.length - i - 1] = temp;
+        }
+    }
     
     public InterpolationMode getInterpolationMode() {
         return interpolationMode;
+    }
+
+    public TimeScale getTimeScale() {
+        return timeScale;
     }
     
     public byte getUnk4() {

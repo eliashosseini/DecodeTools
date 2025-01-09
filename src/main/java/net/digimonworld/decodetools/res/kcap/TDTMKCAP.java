@@ -1,17 +1,41 @@
 package net.digimonworld.decodetools.res.kcap;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import de.javagl.jgltf.impl.v2.Accessor;
+import de.javagl.jgltf.impl.v2.Animation;
+import de.javagl.jgltf.impl.v2.AnimationChannel;
+import de.javagl.jgltf.impl.v2.AnimationChannelTarget;
+import de.javagl.jgltf.impl.v2.AnimationSampler;
+import de.javagl.jgltf.impl.v2.Buffer;
+import de.javagl.jgltf.impl.v2.BufferView;
+import de.javagl.jgltf.impl.v2.GlTF;
+import de.javagl.jgltf.impl.v2.Sampler;
+
+import static de.javagl.jgltf.model.GltfConstants.GL_FLOAT;
+import static de.javagl.jgltf.model.GltfConstants.GL_ARRAY_BUFFER;
+
 import net.digimonworld.decodetools.Main;
 import net.digimonworld.decodetools.core.Access;
 import net.digimonworld.decodetools.core.Utils;
+import net.digimonworld.decodetools.gui.GLTFExporter;
 import net.digimonworld.decodetools.res.ResData;
 import net.digimonworld.decodetools.res.ResPayload;
 import net.digimonworld.decodetools.res.payload.QSTMPayload;
 import net.digimonworld.decodetools.res.payload.VCTMPayload;
+import net.digimonworld.decodetools.res.payload.VCTMPayload.InterpolationMode;
+import net.digimonworld.decodetools.res.payload.VCTMPayload.TimeScale;
+import net.digimonworld.decodetools.res.payload.qstm.Axis;
+import net.digimonworld.decodetools.res.payload.qstm.QSTM00Entry;
+import net.digimonworld.decodetools.res.payload.qstm.QSTM02Entry;
+import net.digimonworld.decodetools.res.payload.qstm.QSTMEntry;
+import net.digimonworld.decodetools.res.payload.qstm.QSTMEntryType;
 
 //TODO figure out how TDTM works and abstrahize it per entry
 // sets up the animation data, i.e. initial positions, which anim data to use and more
@@ -84,6 +108,200 @@ public class TDTMKCAP extends AbstractKCAP {
         long expectedEnd = info.startAddress + info.size;
         if (source.getPosition() != expectedEnd)
             Main.LOGGER.warning(() -> "Final position for TDTM KCAP does not match the header. Current: " + source.getPosition() + " Expected: " + expectedEnd);
+    }
+
+    // each animation is in a TDTM
+    // access it from parent of HSMP passed to gltf exporter
+    // The TDTM contains start and end times of the animation, says whether it’s editing joints, material or texture
+    // within the TDTM, there are paired QSTM and VCTM files
+    // Each QSTM describes how a joint is changed
+    // Each VCTM has a series of keyframe vectors for that transformation, with time related data
+    // In gltf exporter:
+    // get all tdtms
+    // for each tdtm
+    // check that it is a rig animation
+    // get start and end times
+    // get QSTMs and VCTMs
+    // for each QSTM and VCTM
+    // use QSTM to determine joint and translation/rotation/scale
+    // use VCTM to get the keyframes (should have time scale)
+    // create an animation from the extracted data
+    // add to model
+    // use chair animation as reference to determine how data is stored
+    // model import (ideal)
+    // convert fbx and sprite sheet to res, specify which animation is which
+
+
+    public void exportGLTFAnimation(GlTF instance) {
+        
+        // gltf animation needs:
+        //      channels (combines a sampler with a target)
+        //      samplers (combines a timestamp with output values and interpolation)
+        //  So we need the joint, the timestamp, the values for each axis
+
+        List<AnimationChannel> channels = new ArrayList<>();
+        List<AnimationSampler> samplers = new ArrayList<>();
+
+        // Each TDTM Entry can only map one joint
+        for (int i = 0; i < tdtmEntry.size(); i++) {
+            TDTMEntry tEntry = tdtmEntry.get(i);
+            int jointId = tEntry.jointId;
+
+            // Create an animation channel target
+            AnimationChannelTarget act = new AnimationChannelTarget();
+            act.setNode(jointId); // Set Node
+
+            switch(tEntry.mode) {
+                case TRANSLATION:
+                    act.setPath("translation");
+                    break;
+                case ROTATION:
+                    act.setPath("rotation");
+                    break;
+                case SCALE:
+                case LOCAL_SCALE:
+                    act.setPath("scale");
+                    break;
+            }
+
+            // Linear 1D by default
+            InterpolationMode interMode = InterpolationMode.LINEAR_1D;
+
+            // Every 30 Frames by default
+            TimeScale timeScale = TimeScale.EVERY_30_FRAMES;
+
+            System.out.println("TDTM Entry " + i);
+
+            QSTMPayload qstmPayload = qstm.get(tEntry.qstmId);
+
+            for (int j = 0; j < qstmPayload.getEntries().size(); j++) {
+                QSTMEntry qEntry = qstmPayload.getEntries().get(j);
+                QSTMEntryType type = qEntry.getType();
+
+                Axis axis = Axis.NONE;
+
+                float[] frames = new float[0];
+                float[] frameData = new float[0];
+
+                switch(type.getId()) {
+                    case 0: // QSTM00Entry, only 1 or 3 
+                        axis = ((QSTM00Entry)qEntry).getAxis();
+                        List<Float> values = ((QSTM00Entry)qEntry).getValues();
+
+                        frames = new float[values.size()];
+                        frameData = new float[values.size()];
+
+                        for (int k = 0; k < values.size(); k++) {
+                            frames[k] = k;
+                            frameData[k] = values.get(k);
+                        }
+
+                        break;
+                    case 1: // QSTM01Entry, don't know how to do this yet
+                        break;
+                    case 2: // QSTM02Entry (has to access VCTM)
+                        axis = ((QSTM02Entry)qEntry).getAxis();
+                        VCTMPayload vctmPayload = vctm.get(((QSTM02Entry)qEntry).getVctmId());
+
+                        interMode = vctmPayload.getInterpolationMode();
+
+                        timeScale = vctmPayload.getTimeScale();
+
+                        frames = vctmPayload.getFrameList();
+                        frameData = vctmPayload.getFrameDataList();
+                        break;
+                }
+                
+                // Convert frames to seconds
+
+                float[] frametimes = new float[frames.length];
+
+                for (int k = 0; k < frames.length; k++) {
+                    frametimes[k] = (float) (frames[k] / 30.0);
+                }
+
+                // Create a buffer and accessor with the time stamps
+                int timeBuffer = arrayToBuffer(frametimes, instance);
+                int timeBufferView = createBufferView(timeBuffer, GL_ARRAY_BUFFER, "timeBV_"+i+"_"+j, instance);
+                int timeAccessor = createAccessor(timeBufferView, GL_FLOAT, frametimes.length, "SCALAR", "timeAccessor_"+i+"_"+j, instance);
+
+                // Create a buffer and accessor with the values
+                int valBuffer = arrayToBuffer(frameData, instance);
+                int valBufferView = createBufferView(valBuffer, GL_ARRAY_BUFFER, "valueBV_"+i+"_"+j, instance);
+                int valAccessor = createAccessor(valBufferView, GL_FLOAT, frameData.length, "SCALAR", "valueAccessor_"+i+"_"+j, instance);
+
+                // Set them to be the input and output of the animation sampler
+                AnimationSampler as = new AnimationSampler();
+                as.setInterpolation("LINEAR");
+                as.setInput(timeAccessor);
+                as.setOutput(valAccessor);
+
+                System.out.println("Joint: " + jointId + ", Interpolation Mode: " + interMode + ", Time Scale: " + timeScale);
+
+                System.out.println("QSTM " + j + ": " + qEntry.getType() + ", Axis: " + axis);
+
+                for (int k = 0; k < frames.length; k++) {
+                    System.out.println(frames[k] + ": " + frameData[k]);
+                }
+                
+            }
+
+            Sampler sampler = new Sampler();
+            instance.addSamplers(sampler);
+            int samplerIndex = instance.getSamplers().size() - 1;
+
+            AnimationChannel ac = new AnimationChannel();
+            ac.setTarget(act);
+            ac.setSampler(samplerIndex);
+        }
+
+        Animation anim = new Animation();
+
+        // Error: number of channel elements is < 1 ?
+        anim.setChannels(channels);
+        anim.setSamplers(samplers);
+
+        instance.addAnimations(anim);
+    }
+
+    private int arrayToBuffer(float[] arr, GlTF instance) {
+        ByteBuffer mBuffer = ByteBuffer.allocate(arr.length*4);
+        mBuffer.order(ByteOrder.LITTLE_ENDIAN);
+
+        for (float x : arr)
+                mBuffer.putFloat(x);
+
+        //mBuffer.flip();
+
+        Buffer gltfBuffer = new Buffer();
+        gltfBuffer.setUri(GLTFExporter.BUFFER_URI + Base64.getEncoder().encodeToString(mBuffer.array()));
+        gltfBuffer.setByteLength(arr.length*4);
+        instance.addBuffers(gltfBuffer);
+
+        return instance.getBuffers().size() - 1;
+    }
+
+    private int createAccessor(int bufferView, int componentType, int count, String type, String name, GlTF instance) {
+        Accessor accessor = new Accessor();
+        accessor.setBufferView(bufferView);
+        accessor.setComponentType(componentType);
+        accessor.setCount(count);
+        accessor.setType(type);
+        accessor.setName(name);
+        instance.addAccessors(accessor);
+        return instance.getAccessors().size() - 1;
+    }
+
+    private int createBufferView(int buffer, int target, String name, GlTF instance) {
+        BufferView bufferView = new BufferView();
+        bufferView.setBuffer(buffer);
+        bufferView.setByteOffset(0);
+        bufferView.setByteLength(instance.getBuffers().get(buffer).getByteLength());
+        if (target != 0)
+            bufferView.setTarget(target);
+        bufferView.setName(name);
+        instance.addBufferViews(bufferView);
+        return instance.getBufferViews().size() - 1;
     }
     
     @Override
