@@ -115,13 +115,7 @@ public class VCTMPayload extends ResPayload {
 
                 data = newData;
             }
-            frames[i] = (float)ByteBuffer.wrap(data).getInt();
-
-            // StringBuilder sb = new StringBuilder();
-            // for (byte b : data) {
-            //     sb.append(String.format("%02X ", b));
-            // }
-            // System.out.println(sb.toString() + " = " + frames[i]);
+            frames[i] = Float.intBitsToFloat(ByteBuffer.wrap(data).getInt());
         }
 
         return frames;
@@ -135,8 +129,8 @@ public class VCTMPayload extends ResPayload {
 
         float[][] frameData = new float[numEntries][compCount];
 
-        // System.out.println("Component Type: " + componentType);
-        // System.out.println("Data size: " + dataSize + " bytes");
+        System.out.println("Component Type: " + componentType);
+        System.out.println("Data size: " + dataSize + " bytes");
 
         for (int i = 0; i < numEntries; i++) {
             byte[] data = data2[i].getData();
@@ -144,7 +138,9 @@ public class VCTMPayload extends ResPayload {
             byte[][] splitData = new byte[compCount][dataSize];
             int k = 0;
 
-            StringBuilder sb = new StringBuilder();
+            //StringBuilder sb = new StringBuilder();
+
+            //sb.append("Original hex: ");
 
             for (int x = 0; x < compCount; x++) {
                 for (int y = 0; y < dataSize; y++) {
@@ -153,11 +149,14 @@ public class VCTMPayload extends ResPayload {
                 }
                 reverseArray(splitData[x]);
 
-                for (int y = 0; y < splitData[x].length; y++) {
-                    sb.append(String.format("%02X ", splitData[x][y]));
-                }
+                // for (int y = 0; y < splitData[x].length; y++) {
+                //     sb.append(String.format("%02X ", splitData[x][y]));
+                // }
             }
             //System.out.println(sb.toString());
+
+            // sb = new StringBuilder();
+            // sb.append("Converted hex: ");
 
             for (int j = 0; j < compCount; j++) {
                 switch(componentType) {
@@ -175,7 +174,7 @@ public class VCTMPayload extends ResPayload {
                         break;
                     case INT16:
                     case INT8:
-                        frameData[i][j] = (float)ByteBuffer.wrap(splitData[j]).getInt();
+                        frameData[i][j] = Float.intBitsToFloat(ByteBuffer.wrap(splitData[j]).getInt());
                         break;
                     case UINT16:
                         byte[] uint16data = new byte[4];
@@ -184,7 +183,7 @@ public class VCTMPayload extends ResPayload {
                         uint16data[2] = splitData[j][0];
                         uint16data[3] = splitData[j][1];
                         
-                        frameData[i][j] = (float)ByteBuffer.wrap(uint16data).getInt();
+                        frameData[i][j] = Float.intBitsToFloat(ByteBuffer.wrap(uint16data).getInt());
                         data = uint16data;
                         break;
                     case UINT8:
@@ -194,38 +193,36 @@ public class VCTMPayload extends ResPayload {
                         uint8data[2] = 0x00;
                         uint8data[3] = splitData[j][0];
                         
-                        frameData[i][j] = (float)ByteBuffer.wrap(uint8data).getInt();
+                        frameData[i][j] = Float.intBitsToFloat(ByteBuffer.wrap(uint8data).getInt());
                         data = uint8data;
                         break;
                     default:
                         frameData[i][j] = 0;
                         break;
                 }
-                //System.out.print(frameData[i][j] + ", ");
-
-                //System.out.println(String.format("0x%08X", frameData[i][j]));
             }
-            //System.out.println();
+            //System.out.println(sb.toString());
         }
 
         return frameData;
     }
 
     private float convert16to32 (int float16bits) {
-        
-        // first bit is sign
-        int sign = float16bits >> 15;
 
-        // next 5 are exponent
-        int exp = float16bits >> 10;
-        exp = exp & 0b11111;
+        int nonSign = float16bits & 0x7fff;
+        int sign = float16bits & 0x8000;
+        int exp = float16bits & 0x7c00;
 
-        // remaining 10 are mantissa
-        int mantissa = float16bits & 0b1111111111;
+        nonSign = nonSign << 13;
+        sign = sign << 16;
 
-        float output = (sign << 31) | (exp << 23) | mantissa;
+        nonSign += 0x38000000;
 
-        return output;
+        nonSign = (exp == 0 ? 0 : nonSign);
+
+        nonSign = nonSign | sign;
+
+        return Float.intBitsToFloat(nonSign);
     }
 
     private void reverseArray(byte arr[]) {

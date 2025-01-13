@@ -150,7 +150,7 @@ public class TDTMKCAP extends AbstractKCAP {
             float wMin = Float.POSITIVE_INFINITY;
             float wMax = Float.NEGATIVE_INFINITY;
 
-            List<Float> qstm0Values;
+            float[] offset = { 0, 0, 0, 0 };
 
             QSTMPayload qstmPayload = qstm.get(tEntry.qstmId);
 
@@ -171,38 +171,33 @@ public class TDTMKCAP extends AbstractKCAP {
 
                         System.out.println("Axis: " + axis);
 
-                        qstm0Values = ((QSTM00Entry)qEntry).getValues();
+                        List<Float> qstm0Values = ((QSTM00Entry)qEntry).getValues();
 
-                        // if (values.size() == 3) {
-                        //     xMax = values.get(0);
-                        //     yMax = values.get(1);
-                        //     zMax = values.get(2);
-                        // }
+                        if (qstm0Values.size() == 3) {
+                            offset[0] = qstm0Values.get(0);
+                            offset[1] = qstm0Values.get(1);
+                            offset[2] = qstm0Values.get(2);
+                        }
 
-                        // switch(axis) {
-                        //     case X:
-                        //         qstm0Values[0] = values.get(0);
-                        //         System.out.println(values.get(0));
-                        //         break;
-                        //     case Y:
-                        //         qstm0Values[1] = values.get(0);
-                        //         System.out.println(values.get(0));
-                        //         break;
-                        //     case Z:
-                        //         qstm0Values[2] = values.get(0);
-                        //         System.out.println(values.get(0));
-                        //         break;
-                        //     case W:
-                        //         qstm0Values[3] = values.get(0);
-                        //         System.out.println(values.get(0));
-                        //         break;
-                        //     case NONE:
-                        //         for (int k = 0; k < values.size(); k++) {
-                        //             qstm0Values[k] = values.get(k);
-                        //         }
-                        //         System.out.println(qstm0Values[0] + " | " + qstm0Values[1] + " | " + qstm0Values[2] + " | " + qstm0Values[3]);
-                        //         break;
-                        // }
+                        switch(axis) {
+                            case X:
+                                offset[0] = qstm0Values.get(0);
+                                break;
+                            case Y:
+                                offset[1] = qstm0Values.get(0);
+                                break;
+                            case Z:
+                                offset[2] = qstm0Values.get(0);
+                                break;
+                            case W:
+                                offset[3] = qstm0Values.get(0);
+                                break;
+                            case NONE:
+                                for (int k = 0; k < qstm0Values.size(); k++) {
+                                    offset[k] = qstm0Values.get(k);
+                                }
+                                break;
+                        }
                         break;
                     case 1: // QSTM01Entry, don't know how to do this yet
                         break;
@@ -295,8 +290,6 @@ public class TDTMKCAP extends AbstractKCAP {
             float timeMin = Float.POSITIVE_INFINITY;
             float timeMax = Float.NEGATIVE_INFINITY;
 
-            float factor = 1;
-
             for (int k = 0; k < times.size(); k++) {
                 switch(tEntry.mode) {
                     case TRANSLATION:
@@ -305,9 +298,9 @@ public class TDTMKCAP extends AbstractKCAP {
                         timeMin = Math.min(timeMin, posTimes[k]);
                         timeMax = Math.max(timeMax, posTimes[k]);
 
-                        x = xValues.containsKey(times.get(k)) ? factor * xValues.get(times.get(k)) : 0;
-                        y = yValues.containsKey(times.get(k)) ? factor * yValues.get(times.get(k)) : 0;
-                        z = zValues.containsKey(times.get(k)) ? factor * zValues.get(times.get(k)) : 0;
+                        x = xValues.containsKey(times.get(k)) ? xValues.get(times.get(k)) + offset[0] : 0;
+                        y = yValues.containsKey(times.get(k)) ? yValues.get(times.get(k)) + offset[1] : 0;
+                        z = zValues.containsKey(times.get(k)) ? zValues.get(times.get(k)) + offset[2] : 0;
 
                         xMin = Math.min(xMin, x);
                         xMax = Math.max(xMax, x);
@@ -329,10 +322,10 @@ public class TDTMKCAP extends AbstractKCAP {
                         timeMin = Math.min(timeMin, rotTimes[k]);
                         timeMax = Math.max(timeMax, rotTimes[k]);
 
-                        x = xValues.containsKey(times.get(k)) ? factor * xValues.get(times.get(k)) : 0;
-                        y = yValues.containsKey(times.get(k)) ? factor * yValues.get(times.get(k)) : 0;
-                        z = zValues.containsKey(times.get(k)) ? factor * zValues.get(times.get(k)) : 0;
-                        w = wValues.containsKey(times.get(k)) ? factor * wValues.get(times.get(k)) : 0;
+                        x = xValues.containsKey(times.get(k)) ? xValues.get(times.get(k)) + offset[0] : 0;
+                        y = yValues.containsKey(times.get(k)) ? yValues.get(times.get(k)) + offset[1] : 0;
+                        z = zValues.containsKey(times.get(k)) ? zValues.get(times.get(k)) + offset[2] : 0;
+                        w = wValues.containsKey(times.get(k)) ? wValues.get(times.get(k)) + offset[3] : 0;
 
                         // x = 0;
                         // y = 0;
@@ -363,9 +356,9 @@ public class TDTMKCAP extends AbstractKCAP {
                         timeMin = Math.min(timeMin, scaTimes[k]);
                         timeMax = Math.max(timeMax, scaTimes[k]);
 
-                        x = xValues.containsKey(times.get(k)) ? factor * xValues.get(times.get(k)) : 1;
-                        y = yValues.containsKey(times.get(k)) ? factor * yValues.get(times.get(k)) : 1;
-                        z = zValues.containsKey(times.get(k)) ? factor * zValues.get(times.get(k)) : 1;
+                        x = xValues.containsKey(times.get(k)) ? xValues.get(times.get(k)) + offset[0] : 1;
+                        y = yValues.containsKey(times.get(k)) ? yValues.get(times.get(k)) + offset[1] : 1;
+                        z = zValues.containsKey(times.get(k)) ? zValues.get(times.get(k)) + offset[2] : 1;
 
                         xMin = Math.min(xMin, x);
                         xMax = Math.max(xMax, x);
