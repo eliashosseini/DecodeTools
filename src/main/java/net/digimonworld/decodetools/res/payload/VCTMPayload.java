@@ -140,23 +140,24 @@ public class VCTMPayload extends ResPayload {
 
         for (int i = 0; i < numEntries; i++) {
             byte[] data = data2[i].getData();
-            reverseArray(data);
 
             byte[][] splitData = new byte[compCount][dataSize];
             int k = 0;
+
+            StringBuilder sb = new StringBuilder();
 
             for (int x = 0; x < compCount; x++) {
                 for (int y = 0; y < dataSize; y++) {
                     splitData[x][y] = data[k];
                     k++;
                 }
-            }
+                reverseArray(splitData[x]);
 
-            // StringBuilder sb = new StringBuilder();
-            // for (byte b : data) {
-            //     sb.append(String.format("%02X ", b));
-            // }
-            // System.out.print(sb.toString() + " = ");
+                for (int y = 0; y < splitData[x].length; y++) {
+                    sb.append(String.format("%02X ", splitData[x][y]));
+                }
+            }
+            //System.out.println(sb.toString());
 
             for (int j = 0; j < compCount; j++) {
                 switch(componentType) {
@@ -201,6 +202,8 @@ public class VCTMPayload extends ResPayload {
                         break;
                 }
                 //System.out.print(frameData[i][j] + ", ");
+
+                //System.out.println(String.format("0x%08X", frameData[i][j]));
             }
             //System.out.println();
         }
@@ -220,7 +223,6 @@ public class VCTMPayload extends ResPayload {
         // remaining 10 are mantissa
         int mantissa = float16bits & 0b1111111111;
 
-        int combined = (sign << 31) | (exp << 23) | mantissa;
         float output = (sign << 31) | (exp << 23) | mantissa;
 
         return output;
