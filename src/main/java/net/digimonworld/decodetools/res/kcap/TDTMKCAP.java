@@ -6,14 +6,12 @@ import static de.javagl.jgltf.model.GltfConstants.GL_FLOAT;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.Hashtable;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.Dictionary;
-import java.util.Enumeration;
-import java.util.Hashtable;
-import java.util.Arrays;
 
 import de.javagl.jgltf.impl.v2.Accessor;
 import de.javagl.jgltf.impl.v2.Animation;
@@ -35,7 +33,6 @@ import net.digimonworld.decodetools.res.payload.VCTMPayload;
 import net.digimonworld.decodetools.res.payload.VCTMPayload.InterpolationMode;
 import net.digimonworld.decodetools.res.payload.VCTMPayload.TimeScale;
 import net.digimonworld.decodetools.res.payload.qstm.Axis;
-import net.digimonworld.decodetools.res.payload.qstm.QSTM00Entry;
 import net.digimonworld.decodetools.res.payload.qstm.QSTM02Entry;
 import net.digimonworld.decodetools.res.payload.qstm.QSTMEntry;
 import net.digimonworld.decodetools.res.payload.qstm.QSTMEntryType;
@@ -160,10 +157,10 @@ public class TDTMKCAP extends AbstractKCAP {
 
             List<Float> times = new ArrayList<Float>();
 
-            Dictionary<Float, Float> xValues = new Hashtable<>();
-            Dictionary<Float, Float> yValues = new Hashtable<>();
-            Dictionary<Float, Float> zValues = new Hashtable<>();
-            Dictionary<Float, Float> wValues = new Hashtable<>();
+            Hashtable<Float, Float> xValues = new Hashtable<Float, Float>();
+            Hashtable<Float, Float> yValues = new Hashtable<Float, Float>();
+            Hashtable<Float, Float> zValues = new Hashtable<Float, Float>();
+            Hashtable<Float, Float> wValues = new Hashtable<Float, Float>();
 
             QSTMPayload qstmPayload = qstm.get(tEntry.qstmId);
 
@@ -174,7 +171,7 @@ public class TDTMKCAP extends AbstractKCAP {
                 Axis axis = Axis.NONE;
 
                 float[] qstmTimes = new float[0];
-                float[] qstmValues = new float[0];
+                float[][] qstmValues = new float[0][0];
 
                 switch(type.getId()) {
                     case 0: // QSTM00Entry, only 1 or 3 
@@ -219,21 +216,42 @@ public class TDTMKCAP extends AbstractKCAP {
                         times.add(timestamps[k]);
                     }
 
-                    switch(axis) {
-                        case X:
-                            xValues.put(timestamps[k], qstmValues[k]);
-                            break;
-                        case Y:
-                            yValues.put(timestamps[k], qstmValues[k]);
-                            break;
-                        case Z:
-                            zValues.put(timestamps[k], qstmValues[k]);
-                            break;
-                        case W:
-                            wValues.put(timestamps[k], qstmValues[k]);
-                            break;
-                        default:
-                            break;
+                    if (qstmValues[0].length > 1) {
+                        switch (tEntry.mode) {
+                            case TRANSLATION:
+                            case SCALE:
+                                xValues.put(timestamps[k], qstmValues[k][0]);
+                                yValues.put(timestamps[k], qstmValues[k][1]);
+                                zValues.put(timestamps[k], qstmValues[k][2]);
+                                break;
+                            case ROTATION:
+                                xValues.put(timestamps[k], qstmValues[k][0]);
+                                yValues.put(timestamps[k], qstmValues[k][1]);
+                                zValues.put(timestamps[k], qstmValues[k][2]);
+                                wValues.put(timestamps[k], qstmValues[k][3]);
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                    else {
+                        switch(axis) {
+                            case X:
+                                xValues.put(timestamps[k], qstmValues[k][0]);
+                                break;
+                            case Y:
+                                yValues.put(timestamps[k], qstmValues[k][0]);
+                                break;
+                            case Z:
+                                zValues.put(timestamps[k], qstmValues[k][0]);
+                                break;
+                            case W:
+                                wValues.put(timestamps[k], qstmValues[k][0]);
+                                break;
+                            default:
+                                break;
+                        }
+                    }
                 }
 
                 Collections.sort(times);
@@ -251,162 +269,140 @@ public class TDTMKCAP extends AbstractKCAP {
             float[] scaTimes = new float[times.size()];
             float[][] scaValues = new float[times.size()][3];
 
-            Arrays.fill(scaValues, 1);
+            float x, y, z, w;
+
+            for (int k = 0; k < times.size(); k++) {
+                x = xValues.containsKey(times.get(k)) ? xValues.get(times.get(k)) : 0;
+                y = yValues.containsKey(times.get(k)) ? yValues.get(times.get(k)) : 0;
+                z = zValues.containsKey(times.get(k)) ? zValues.get(times.get(k)) : 0;
+                w = wValues.containsKey(times.get(k)) ? wValues.get(times.get(k)) : 0;
+
+                switch(tEntry.mode) {
+                    case TRANSLATION:
+                        posTimes[k] = times.get(k);
+
+                        x = xValues.containsKey(times.get(k)) ? xValues.get(times.get(k)) : 0;
+                        y = yValues.containsKey(times.get(k)) ? yValues.get(times.get(k)) : 0;
+                        z = zValues.containsKey(times.get(k)) ? zValues.get(times.get(k)) : 0;
+
+                        posValues[k][0] = x;
+                        posValues[k][1] = y;
+                        posValues[k][2] = z;
+
+                        break;
+                    case ROTATION:
+                        rotTimes[k] = times.get(k);
+
+                        x = xValues.containsKey(times.get(k)) ? xValues.get(times.get(k)) : 0;
+                        y = yValues.containsKey(times.get(k)) ? yValues.get(times.get(k)) : 0;
+                        z = zValues.containsKey(times.get(k)) ? zValues.get(times.get(k)) : 0;
+                        w = wValues.containsKey(times.get(k)) ? wValues.get(times.get(k)) : 0;
+
+                        rotValues[k][0] = x;
+                        rotValues[k][1] = y;
+                        rotValues[k][2] = z;
+                        rotValues[k][3] = w;
+
+                        break;
+                    case SCALE:
+                        scaTimes[k] = times.get(k);
+
+                        x = xValues.containsKey(times.get(k)) ? xValues.get(times.get(k)) : 1;
+                        y = yValues.containsKey(times.get(k)) ? yValues.get(times.get(k)) : 1;
+                        z = zValues.containsKey(times.get(k)) ? zValues.get(times.get(k)) : 1;
+
+                        scaValues[k][0] = x;
+                        scaValues[k][1] = y;
+                        scaValues[k][2] = z;
+
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            AnimationSampler as = new AnimationSampler();
+            as.setInterpolation("LINEAR");
+
+            int timeBuffer, timeBufferView, timeAccessor = 0;
+            int valBuffer, valBufferView, valAccessor = 0;
+
+            System.out.println(tEntry.mode);
 
             switch(tEntry.mode) {
                 case TRANSLATION:
                     act.setPath("translation");
-                    
+
+                    System.out.println("time | x | y | z");
+
+                    for (int k = 0; k < posTimes.length; k++) {
+                        System.out.println(posTimes[k] + " | " + posValues[k][0] + " | " + posValues[k][1] + " | " + posValues[k][2]);
+                    }
+
+                    timeBuffer = arrayToBuffer(posTimes, instance);
+                    timeBufferView = createBufferView(timeBuffer, GL_ARRAY_BUFFER, "posTimeBufferView_"+i, instance);
+                    timeAccessor = createAccessor(timeBufferView, GL_FLOAT, posTimes.length, "SCALAR", "posTimeAccessor_"+i, instance);
+
+                    valBuffer = vectorToBuffer(posValues, instance);
+                    valBufferView = createBufferView(valBuffer, GL_ARRAY_BUFFER, "posValueBufferView_"+i, instance);
+                    valAccessor = createAccessor(valBufferView, GL_FLOAT, posValues.length, "VEC3", "posValueAccessor_"+i, instance);
+
+                    as.setInput(timeAccessor);
+                    as.setOutput(valAccessor);
                     break;
                 case ROTATION:
                     act.setPath("rotation");
+
+                    System.out.println("time | x | y | z | w");
+
+                    for (int k = 0; k < rotTimes.length; k++) {
+                        System.out.println(rotTimes[k] + " | " + rotValues[k][0] + " | " + rotValues[k][1] + " | " + rotValues[k][2] + " | " + rotValues[k][3]);
+                    }
+
+
+                    timeBuffer = arrayToBuffer(rotTimes, instance);
+                    timeBufferView = createBufferView(timeBuffer, GL_ARRAY_BUFFER, "rotTimeBufferView_"+i, instance);
+                    timeAccessor = createAccessor(timeBufferView, GL_FLOAT, rotTimes.length, "SCALAR", "rotTimeAccessor_"+i, instance);
+
+                    valBuffer = vectorToBuffer(rotValues, instance);
+                    valBufferView = createBufferView(valBuffer, GL_ARRAY_BUFFER, "rotValueBufferView_"+i, instance);
+                    valAccessor = createAccessor(valBufferView, GL_FLOAT, rotValues.length, "VEC4", "rotValueAccessor_"+i, instance);
+
+                    as.setInput(timeAccessor);
+                    as.setOutput(valAccessor);
                     break;
                 case SCALE:
                     act.setPath("scale");
+
+                    System.out.println("time | x | y | z");
+
+                    for (int k = 0; k < scaTimes.length; k++) {
+                        System.out.println(scaTimes[k] + " | " + scaValues[k][0] + " | " + scaValues[k][1] + " | " + scaValues[k][2]);
+                    }
+
+                    timeBuffer = arrayToBuffer(scaTimes, instance);
+                    timeBufferView = createBufferView(timeBuffer, GL_ARRAY_BUFFER, "scaTimeBufferView_"+i, instance);
+                    timeAccessor = createAccessor(timeBufferView, GL_FLOAT, scaTimes.length, "SCALAR", "scaTimeAccessor_"+i, instance);
+
+                    valBuffer = vectorToBuffer(scaValues, instance);
+                    valBufferView = createBufferView(valBuffer, GL_ARRAY_BUFFER, "scaValueBufferView_"+i, instance);
+                    valAccessor = createAccessor(valBufferView, GL_FLOAT, scaValues.length, "VEC3", "scaValueAccessor_"+i, instance);
+
+                    as.setInput(timeAccessor);
+                    as.setOutput(valAccessor);
                     break;
                 default:
                     break;
             }
 
-            float[] best_times = x_times;
-
-            // Create a buffer and accessor with the time stamps
-            if (y_times.length > x_times.length) {
-                best_times = y_times;
-            }
-
-            int timeBuffer = arrayToBuffer(best_times, instance);
-            int timeBufferView = createBufferView(timeBuffer, GL_ARRAY_BUFFER, "timeBV_"+i, instance);
-            int timeAccessor = createAccessor(timeBufferView, GL_FLOAT, best_times.length, "SCALAR", "timeAccessor_"+i, instance);
-
-            // Set them to be the input and output of the animation sampler
-            AnimationSampler as = new AnimationSampler();
-            as.setInterpolation("LINEAR");
-            as.setInput(timeAccessor);
-
-            int valBuffer;
-            int valBufferView;
-            int valAccessor;
-            float[][] vector = new float[3][];
-
-            int maxSize = 0;
-            maxSize = Math.max(x_values.length, y_values.length);
-            maxSize = Math.max(maxSize, z_values.length);
-            maxSize = Math.max(maxSize, w_values.length);
-
-            float[] new_x_values = new float[maxSize];
-            float[] new_y_values = new float[maxSize];
-            float[] new_z_values = new float[maxSize];
-            float[] new_w_values = new float[maxSize];
-
-            for (int j = 0; j < maxSize; j++) {
-                if (j < x_values.length) {
-                    new_x_values[j] = x_values[j];
-                }
-                else {
-                    new_x_values[j] = 0;
-                }
-
-                if (j < y_values.length) {
-                    new_y_values[j] = y_values[j];
-                }
-                else {
-                    new_y_values[j] = 0;
-                }
-
-                if (j < z_values.length) {
-                    new_z_values[j] = z_values[j];
-                }
-                else {
-                    new_z_values[j] = 0;
-                }
-
-                if (j < w_values.length) {
-                    new_w_values[j] = w_values[j];
-                }
-                else {
-                    new_w_values[j] = 0;
-                }
-            }
-
-            switch(tEntry.mode) {
-                case TRANSLATION:
-                    act.setPath("translation");
-
-                    vector[0] = new_x_values;
-                    vector[1] = new_y_values;
-                    vector[2] = new_z_values;
-
-                    // Create a buffer and accessor with the values
-                    valBuffer = vectorToBuffer(vector, instance);
-                    valBufferView = createBufferView(valBuffer, GL_ARRAY_BUFFER, "valueBV_"+i, instance);
-                    valAccessor = createAccessor(valBufferView, GL_FLOAT, vector.length*vector[0].length, "VEC3", "valueAccessor_"+i, instance);
-                    
-                    as.setOutput(valAccessor);
-                    break;
-                case ROTATION:
-                    act.setPath("rotation");
-
-                    vector = new float[4][];
-                    vector[0] = new_x_values;
-                    vector[1] = new_y_values;
-                    vector[2] = new_z_values;
-                    vector[3] = new_w_values;
-
-                    // Create a buffer and accessor with the values
-                    valBuffer = vectorToBuffer(vector, instance);
-                    valBufferView = createBufferView(valBuffer, GL_ARRAY_BUFFER, "valueBV_"+i, instance);
-                    valAccessor = createAccessor(valBufferView, GL_FLOAT, vector.length*vector[0].length, "VEC4", "valueAccessor_"+i, instance);
-                    
-                    as.setOutput(valAccessor);
-                    break;
-                case SCALE:
-                case LOCAL_SCALE:
-                    act.setPath("scale");
-
-                    vector[0] = new_x_values;
-                    vector[1] = new_y_values;
-                    vector[2] = new_z_values;
-
-                    // Create a buffer and accessor with the values
-                    valBuffer = vectorToBuffer(vector, instance);
-                    valBufferView = createBufferView(valBuffer, GL_ARRAY_BUFFER, "valueBV_"+i, instance);
-                    valAccessor = createAccessor(valBufferView, GL_FLOAT, vector.length*vector[0].length, "VEC3", "valueAccessor_"+i, instance);
-                    
-                    as.setOutput(valAccessor);
-                    break;
-            }
-
-            
-            System.out.println(tEntry.mode);
-            System.out.println("time | x | y | z | w");
-
-            for (int k = 0; k < best_times.length; k++) {
-                System.out.println(best_times[k] + " | " + new_x_values[k] + " | " + new_y_values[k] + 
-                " | " + new_z_values[k] + " | " + new_w_values[k]);
-            }
-
-            AnimationChannel posChannel = new AnimationChannel();
-            AnimationChannel rotChannel = new AnimationChannel();
-            AnimationChannel scaChannel = new AnimationChannel();
-
-            AnimationSampler posSampler = new AnimationSampler();
-            AnimationSampler rotSampler = new AnimationSampler();
-            AnimationSampler scaSampler = new AnimationSampler();
-
-            Sampler sampler = new Sampler();
-            instance.addSamplers(sampler);
-            int samplerIndex = instance.getSamplers().size() - 1;
+            samplers.add(as);
 
             AnimationChannel ac = new AnimationChannel();
             ac.setTarget(act);
-            ac.setSampler(samplerIndex);
-
-            samplers.add(as);
+            ac.setSampler(samplers.size() - 1);
+            
             channels.add(ac);
         }
-
-        
 
         Animation anim = new Animation();
 
@@ -424,9 +420,7 @@ public class TDTMKCAP extends AbstractKCAP {
         mBuffer.order(ByteOrder.LITTLE_ENDIAN);
 
         for (float x : arr)
-                mBuffer.putFloat(x);
-
-        //mBuffer.flip();
+            mBuffer.putFloat(x);
 
         Buffer gltfBuffer = new Buffer();
         gltfBuffer.setUri(GLTFExporter.BUFFER_URI + Base64.getEncoder().encodeToString(mBuffer.array()));
@@ -445,7 +439,6 @@ public class TDTMKCAP extends AbstractKCAP {
                 mBuffer.putFloat(vec[i][j]);
             }
         }
-        //mBuffer.flip();
 
         Buffer gltfBuffer = new Buffer();
         gltfBuffer.setUri(GLTFExporter.BUFFER_URI + Base64.getEncoder().encodeToString(mBuffer.array()));
@@ -453,17 +446,6 @@ public class TDTMKCAP extends AbstractKCAP {
         instance.addBuffers(gltfBuffer);
 
         return instance.getBuffers().size() - 1;
-    }
-
-    private int createAccessor(int bufferView, int componentType, int count, String type, String name, GlTF instance) {
-        Accessor accessor = new Accessor();
-        accessor.setBufferView(bufferView);
-        accessor.setComponentType(componentType);
-        accessor.setCount(count);
-        accessor.setType(type);
-        accessor.setName(name);
-        instance.addAccessors(accessor);
-        return instance.getAccessors().size() - 1;
     }
 
     private int createBufferView(int buffer, int target, String name, GlTF instance) {
@@ -476,6 +458,17 @@ public class TDTMKCAP extends AbstractKCAP {
         bufferView.setName(name);
         instance.addBufferViews(bufferView);
         return instance.getBufferViews().size() - 1;
+    }
+
+    private int createAccessor(int bufferView, int componentType, int count, String type, String name, GlTF instance) {
+        Accessor accessor = new Accessor();
+        accessor.setBufferView(bufferView);
+        accessor.setComponentType(componentType);
+        accessor.setCount(count);
+        accessor.setType(type);
+        accessor.setName(name);
+        instance.addAccessors(accessor);
+        return instance.getAccessors().size() - 1;
     }
     
     @Override

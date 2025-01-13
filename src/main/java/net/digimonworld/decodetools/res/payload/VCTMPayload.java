@@ -127,64 +127,103 @@ public class VCTMPayload extends ResPayload {
         return frames;
     }
 
-    public float[] getFrameDataList() {
-        float[] frameData = new float[numEntries];
+    public float[][] getFrameDataList() {
+        byte[] compCountData = {0x00, 0x00, 0x00, componentCount};
+        int compCount = ByteBuffer.wrap(compCountData).getInt();
 
-        //System.out.println("Component Type: " + componentType);
+        int dataSize = coordSize / compCount;
+
+        float[][] frameData = new float[numEntries][compCount];
+
+        // System.out.println("Component Type: " + componentType);
+        // System.out.println("Data size: " + dataSize + " bytes");
 
         for (int i = 0; i < numEntries; i++) {
             byte[] data = data2[i].getData();
             reverseArray(data);
 
-            switch(componentType) {
-                case FLOAT32:
-                    frameData[i] = ByteBuffer.wrap(data).getFloat();
-                    break;
-                case FLOAT16:
-                    byte[] float16data = new byte[4];
-                    float16data[0] = 0x00;
-                    float16data[1] = 0x00;
-                    float16data[2] = data[0];
-                    float16data[3] = data[1];
-                    
-                    frameData[i] =  ByteBuffer.wrap(float16data).getFloat();
-                    break;
-                case INT16:
-                case INT8:
-                    frameData[i] = (float)ByteBuffer.wrap(data).getInt();
-                    break;
-                case UINT16:
-                    byte[] uint16data = new byte[4];
-                    uint16data[0] = 0x00;
-                    uint16data[1] = 0x00;
-                    uint16data[2] = data[0];
-                    uint16data[3] = data[1];
-                    
-                    frameData[i] = (float)ByteBuffer.wrap(uint16data).getInt();
-                    data = uint16data;
-                    break;
-                case UINT8:
-                    byte[] uint8data = new byte[4];
-                    uint8data[0] = 0x00;
-                    uint8data[1] = 0x00;
-                    uint8data[2] = 0x00;
-                    uint8data[3] = data[0];
-                    
-                    frameData[i] = (float)ByteBuffer.wrap(uint8data).getInt();
-                    data = uint8data;
-                    break;
-                default:
-                    frameData[i] = 0;
+            byte[][] splitData = new byte[compCount][dataSize];
+            int k = 0;
+
+            for (int x = 0; x < compCount; x++) {
+                for (int y = 0; y < dataSize; y++) {
+                    splitData[x][y] = data[k];
+                    k++;
+                }
             }
 
             // StringBuilder sb = new StringBuilder();
             // for (byte b : data) {
             //     sb.append(String.format("%02X ", b));
             // }
-            // System.out.println(sb.toString() + " = " + frameData[i]);
+            // System.out.print(sb.toString() + " = ");
+
+            for (int j = 0; j < compCount; j++) {
+                switch(componentType) {
+                    case FLOAT32:
+                    frameData[i][j] = ByteBuffer.wrap(splitData[j]).getFloat();
+                        break;
+                    case FLOAT16:
+                        byte[] float16data = new byte[4];
+                        float16data[0] = 0x00;
+                        float16data[1] = 0x00;
+                        float16data[2] = splitData[j][0];
+                        float16data[3] = splitData[j][1];
+    
+                        frameData[i][j] = convert16to32(ByteBuffer.wrap(float16data).getInt());
+                        break;
+                    case INT16:
+                    case INT8:
+                        frameData[i][j] = (float)ByteBuffer.wrap(splitData[j]).getInt();
+                        break;
+                    case UINT16:
+                        byte[] uint16data = new byte[4];
+                        uint16data[0] = 0x00;
+                        uint16data[1] = 0x00;
+                        uint16data[2] = splitData[j][0];
+                        uint16data[3] = splitData[j][1];
+                        
+                        frameData[i][j] = (float)ByteBuffer.wrap(uint16data).getInt();
+                        data = uint16data;
+                        break;
+                    case UINT8:
+                        byte[] uint8data = new byte[4];
+                        uint8data[0] = 0x00;
+                        uint8data[1] = 0x00;
+                        uint8data[2] = 0x00;
+                        uint8data[3] = splitData[j][0];
+                        
+                        frameData[i][j] = (float)ByteBuffer.wrap(uint8data).getInt();
+                        data = uint8data;
+                        break;
+                    default:
+                        frameData[i][j] = 0;
+                        break;
+                }
+                //System.out.print(frameData[i][j] + ", ");
+            }
+            //System.out.println();
         }
 
         return frameData;
+    }
+
+    private float convert16to32 (int float16bits) {
+        
+        // first bit is sign
+        int sign = float16bits >> 15;
+
+        // next 5 are exponent
+        int exp = float16bits >> 10;
+        exp = exp & 0b11111;
+
+        // remaining 10 are mantissa
+        int mantissa = float16bits & 0b1111111111;
+
+        int combined = (sign << 31) | (exp << 23) | mantissa;
+        float output = (sign << 31) | (exp << 23) | mantissa;
+
+        return output;
     }
 
     private void reverseArray(byte arr[]) {
