@@ -33,6 +33,7 @@ import net.digimonworld.decodetools.res.payload.VCTMPayload;
 import net.digimonworld.decodetools.res.payload.VCTMPayload.InterpolationMode;
 import net.digimonworld.decodetools.res.payload.VCTMPayload.TimeScale;
 import net.digimonworld.decodetools.res.payload.qstm.Axis;
+import net.digimonworld.decodetools.res.payload.qstm.QSTM00Entry;
 import net.digimonworld.decodetools.res.payload.qstm.QSTM02Entry;
 import net.digimonworld.decodetools.res.payload.qstm.QSTMEntry;
 import net.digimonworld.decodetools.res.payload.qstm.QSTMEntryType;
@@ -110,28 +111,6 @@ public class TDTMKCAP extends AbstractKCAP {
             Main.LOGGER.warning(() -> "Final position for TDTM KCAP does not match the header. Current: " + source.getPosition() + " Expected: " + expectedEnd);
     }
 
-    // each animation is in a TDTM
-    // access it from parent of HSMP passed to gltf exporter
-    // The TDTM contains start and end times of the animation, says whether it’s editing joints, material or texture
-    // within the TDTM, there are paired QSTM and VCTM files
-    // Each QSTM describes how a joint is changed
-    // Each VCTM has a series of keyframe vectors for that transformation, with time related data
-    // In gltf exporter:
-    // get all tdtms
-    // for each tdtm
-    // check that it is a rig animation
-    // get start and end times
-    // get QSTMs and VCTMs
-    // for each QSTM and VCTM
-    // use QSTM to determine joint and translation/rotation/scale
-    // use VCTM to get the keyframes (should have time scale)
-    // create an animation from the extracted data
-    // add to model
-    // use chair animation as reference to determine how data is stored
-    // model import (ideal)
-    // convert fbx and sprite sheet to res, specify which animation is which
-
-
     public void exportGLTFAnimation(GlTF instance, int index) {
         List<AnimationChannel> channels = new ArrayList<AnimationChannel>();
         List<AnimationSampler> samplers = new ArrayList<AnimationSampler>();
@@ -162,6 +141,8 @@ public class TDTMKCAP extends AbstractKCAP {
             Hashtable<Float, Float> zValues = new Hashtable<Float, Float>();
             Hashtable<Float, Float> wValues = new Hashtable<Float, Float>();
 
+            float[] qstm0values = {0, 0, 0, 0};
+
             QSTMPayload qstmPayload = qstm.get(tEntry.qstmId);
 
             for (int j = 0; j < qstmPayload.getEntries().size(); j++) {
@@ -170,25 +151,21 @@ public class TDTMKCAP extends AbstractKCAP {
 
                 Axis axis = Axis.NONE;
 
-                float[] qstmTimes = new float[0];
-                float[][] qstmValues = new float[0][0];
+                float[] qstmTimes = new float[1];
+                float[][] qstmValues = new float[1][1];
 
                 switch(type.getId()) {
-                    case 0: // QSTM00Entry, only 1 or 3 
-                        // axis = ((QSTM00Entry)qEntry).getAxis();
-                        // List<Float> values = ((QSTM00Entry)qEntry).getValues();
+                    case 0: // QSTM00Entry, only 1 or 3
+                        axis = ((QSTM00Entry)qEntry).getAxis();
+                        List<Float> values = ((QSTM00Entry)qEntry).getValues();
 
-                        // frames = new float[values.size()];
-                        // frameData = new float[values.size()];
-
-                        // for (int k = 0; k < values.size(); k++) {
-                        //     frames[k] = k;
-                        //     frameData[k] = values.get(k);
-                        // }
-
-                        break;
+                        qstm0values[0] = values.get(0);
+                        qstm0values[1] = values.get(1);
+                        qstm0values[2] = values.get(2);
+                        
+                        continue;
                     case 1: // QSTM01Entry, don't know how to do this yet
-                        break;
+                        continue;
                     case 2: // QSTM02Entry (has to access VCTM)
                         axis = ((QSTM02Entry)qEntry).getAxis();
                         VCTMPayload vctmPayload = vctm.get(((QSTM02Entry)qEntry).getVctmId());
@@ -199,65 +176,70 @@ public class TDTMKCAP extends AbstractKCAP {
 
                         qstmTimes = vctmPayload.getFrameList();
                         qstmValues = vctmPayload.getFrameDataList();
+
+                        // Convert frames to seconds
+                        float[] timestamps = new float[qstmTimes.length];
+                        
+                        for (int k = 0; k < qstmTimes.length; k++) {
+                            timestamps[k] = (animDuration)*(qstmTimes[k])/qstmTimes[qstmTimes.length-1];
+                        }
+
+                        for (int k = 0; k < timestamps.length; k++) {
+                            
+                            if (!times.contains(timestamps[k])) {
+                                times.add(timestamps[k]);
+                            }
+
+                            if (qstmValues[0].length > 1) {
+                                for (int l = 0; l < qstmValues[0].length; l++) {
+                                    switch(l) {
+                                        case 0:
+                                            xValues.put(timestamps[k], qstmValues[k][l]);
+                                            break;
+                                        case 1:
+                                            yValues.put(timestamps[k], qstmValues[k][l]);
+                                            break;
+                                        case 2:
+                                            zValues.put(timestamps[k], qstmValues[k][l]);
+                                            break;
+                                        case 3:
+                                            wValues.put(timestamps[k], qstmValues[k][l]);
+                                            break;
+                                        default:
+                                            break;
+                                    }
+                                }
+                            }
+                            else {
+                                switch(axis) {
+                                    case X:
+                                        xValues.put(timestamps[k], qstmValues[k][0]);
+                                        break;
+                                    case Y:
+                                        yValues.put(timestamps[k], qstmValues[k][0]);
+                                        break;
+                                    case Z:
+                                        zValues.put(timestamps[k], qstmValues[k][0]);
+                                        break;
+                                    case W:
+                                        wValues.put(timestamps[k], qstmValues[k][0]);
+                                        break;
+                                    default:
+                                        break;
+                                }
+                            }
+                        }
+
+                        Collections.sort(times);
                         break;
                 }
-                
-                // Convert frames to seconds
-                
-                float[] timestamps = new float[qstmTimes.length];
-                
-                for (int k = 0; k < qstmTimes.length; k++) {
-                    timestamps[k] = (animDuration)*(qstmTimes[k])/qstmTimes[qstmTimes.length-1];
-                }
-
-                for (int k = 0; k < timestamps.length; k++) {
-                    
-                    if (!times.contains(timestamps[k])) {
-                        times.add(timestamps[k]);
-                    }
-
-                    if (qstmValues[0].length > 1) {
-                        switch (tEntry.mode) {
-                            case TRANSLATION:
-                            case SCALE:
-                                xValues.put(timestamps[k], qstmValues[k][0]);
-                                yValues.put(timestamps[k], qstmValues[k][1]);
-                                zValues.put(timestamps[k], qstmValues[k][2]);
-                                break;
-                            case ROTATION:
-                                xValues.put(timestamps[k], qstmValues[k][0]);
-                                yValues.put(timestamps[k], qstmValues[k][1]);
-                                zValues.put(timestamps[k], qstmValues[k][2]);
-                                wValues.put(timestamps[k], qstmValues[k][3]);
-                                break;
-                            default:
-                                break;
-                        }
-                    }
-                    else {
-                        switch(axis) {
-                            case X:
-                                xValues.put(timestamps[k], qstmValues[k][0]);
-                                break;
-                            case Y:
-                                yValues.put(timestamps[k], qstmValues[k][0]);
-                                break;
-                            case Z:
-                                zValues.put(timestamps[k], qstmValues[k][0]);
-                                break;
-                            case W:
-                                wValues.put(timestamps[k], qstmValues[k][0]);
-                                break;
-                            default:
-                                break;
-                        }
-                    }
-                }
-
-                Collections.sort(times);
 
                 System.out.println("QSTM " + j + ": " + qEntry.getType());
                 System.out.println("Axis: " + axis + ", Interpolation Mode: " + interMode + ", Time Scale: " + timeScale);
+            }
+
+            if (times.size() < 1) {
+                continue;
             }
 
             float[] posTimes = new float[times.size()];
@@ -272,18 +254,13 @@ public class TDTMKCAP extends AbstractKCAP {
             float x, y, z, w;
 
             for (int k = 0; k < times.size(); k++) {
-                x = xValues.containsKey(times.get(k)) ? xValues.get(times.get(k)) : 0;
-                y = yValues.containsKey(times.get(k)) ? yValues.get(times.get(k)) : 0;
-                z = zValues.containsKey(times.get(k)) ? zValues.get(times.get(k)) : 0;
-                w = wValues.containsKey(times.get(k)) ? wValues.get(times.get(k)) : 0;
-
                 switch(tEntry.mode) {
                     case TRANSLATION:
                         posTimes[k] = times.get(k);
 
-                        x = xValues.containsKey(times.get(k)) ? xValues.get(times.get(k)) : 0;
-                        y = yValues.containsKey(times.get(k)) ? yValues.get(times.get(k)) : 0;
-                        z = zValues.containsKey(times.get(k)) ? zValues.get(times.get(k)) : 0;
+                        x = xValues.containsKey(times.get(k)) ? xValues.get(times.get(k)) + qstm0values[0] : 0;
+                        y = yValues.containsKey(times.get(k)) ? yValues.get(times.get(k)) + qstm0values[1] : 0;
+                        z = zValues.containsKey(times.get(k)) ? zValues.get(times.get(k)) + qstm0values[2] : 0;
 
                         posValues[k][0] = x;
                         posValues[k][1] = y;
@@ -293,10 +270,10 @@ public class TDTMKCAP extends AbstractKCAP {
                     case ROTATION:
                         rotTimes[k] = times.get(k);
 
-                        x = xValues.containsKey(times.get(k)) ? xValues.get(times.get(k)) : 0;
-                        y = yValues.containsKey(times.get(k)) ? yValues.get(times.get(k)) : 0;
-                        z = zValues.containsKey(times.get(k)) ? zValues.get(times.get(k)) : 0;
-                        w = wValues.containsKey(times.get(k)) ? wValues.get(times.get(k)) : 0;
+                        x = xValues.containsKey(times.get(k)) ? xValues.get(times.get(k)) + qstm0values[0] : 0;
+                        y = yValues.containsKey(times.get(k)) ? yValues.get(times.get(k)) + qstm0values[1] : 0;
+                        z = zValues.containsKey(times.get(k)) ? zValues.get(times.get(k)) + qstm0values[2] : 0;
+                        w = wValues.containsKey(times.get(k)) ? wValues.get(times.get(k)) + qstm0values[3] : 0;
 
                         rotValues[k][0] = x;
                         rotValues[k][1] = y;
@@ -307,9 +284,9 @@ public class TDTMKCAP extends AbstractKCAP {
                     case SCALE:
                         scaTimes[k] = times.get(k);
 
-                        x = xValues.containsKey(times.get(k)) ? xValues.get(times.get(k)) : 1;
-                        y = yValues.containsKey(times.get(k)) ? yValues.get(times.get(k)) : 1;
-                        z = zValues.containsKey(times.get(k)) ? zValues.get(times.get(k)) : 1;
+                        x = xValues.containsKey(times.get(k)) ? xValues.get(times.get(k)) + qstm0values[0] : 1;
+                        y = yValues.containsKey(times.get(k)) ? yValues.get(times.get(k)) + qstm0values[1] : 1;
+                        z = zValues.containsKey(times.get(k)) ? zValues.get(times.get(k)) + qstm0values[2] : 1;
 
                         scaValues[k][0] = x;
                         scaValues[k][1] = y;
@@ -333,11 +310,11 @@ public class TDTMKCAP extends AbstractKCAP {
                 case TRANSLATION:
                     act.setPath("translation");
 
-                    System.out.println("time | x | y | z");
+                    // System.out.println("time | x | y | z");
 
-                    for (int k = 0; k < posTimes.length; k++) {
-                        System.out.println(posTimes[k] + " | " + posValues[k][0] + " | " + posValues[k][1] + " | " + posValues[k][2]);
-                    }
+                    // for (int k = 0; k < posTimes.length; k++) {
+                    //     System.out.println(posTimes[k] + " | " + posValues[k][0] + " | " + posValues[k][1] + " | " + posValues[k][2]);
+                    // }
 
                     timeBuffer = arrayToBuffer(posTimes, instance);
                     timeBufferView = createBufferView(timeBuffer, GL_ARRAY_BUFFER, "posTimeBufferView_"+i, instance);
@@ -353,12 +330,11 @@ public class TDTMKCAP extends AbstractKCAP {
                 case ROTATION:
                     act.setPath("rotation");
 
-                    System.out.println("time | x | y | z | w");
+                    // System.out.println("time | x | y | z | w");
 
-                    for (int k = 0; k < rotTimes.length; k++) {
-                        System.out.println(rotTimes[k] + " | " + rotValues[k][0] + " | " + rotValues[k][1] + " | " + rotValues[k][2] + " | " + rotValues[k][3]);
-                    }
-
+                    // for (int k = 0; k < rotTimes.length; k++) {
+                    //     System.out.println(rotTimes[k] + " | " + rotValues[k][0] + " | " + rotValues[k][1] + " | " + rotValues[k][2] + " | " + rotValues[k][3]);
+                    // }
 
                     timeBuffer = arrayToBuffer(rotTimes, instance);
                     timeBufferView = createBufferView(timeBuffer, GL_ARRAY_BUFFER, "rotTimeBufferView_"+i, instance);
@@ -374,11 +350,11 @@ public class TDTMKCAP extends AbstractKCAP {
                 case SCALE:
                     act.setPath("scale");
 
-                    System.out.println("time | x | y | z");
+                    // System.out.println("time | x | y | z");
 
-                    for (int k = 0; k < scaTimes.length; k++) {
-                        System.out.println(scaTimes[k] + " | " + scaValues[k][0] + " | " + scaValues[k][1] + " | " + scaValues[k][2]);
-                    }
+                    // for (int k = 0; k < scaTimes.length; k++) {
+                    //     System.out.println(scaTimes[k] + " | " + scaValues[k][0] + " | " + scaValues[k][1] + " | " + scaValues[k][2]);
+                    // }
 
                     timeBuffer = arrayToBuffer(scaTimes, instance);
                     timeBufferView = createBufferView(timeBuffer, GL_ARRAY_BUFFER, "scaTimeBufferView_"+i, instance);
