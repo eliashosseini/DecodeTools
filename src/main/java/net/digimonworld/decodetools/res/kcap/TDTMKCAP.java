@@ -10,6 +10,10 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Dictionary;
+import java.util.Enumeration;
+import java.util.Hashtable;
+import java.util.Arrays;
 
 import de.javagl.jgltf.impl.v2.Accessor;
 import de.javagl.jgltf.impl.v2.Animation;
@@ -131,36 +135,22 @@ public class TDTMKCAP extends AbstractKCAP {
     // convert fbx and sprite sheet to res, specify which animation is which
 
 
-    public void exportGLTFAnimation(GlTF instance) {
-        
-        // gltf animation needs:
-        //      channels (combines a sampler with a target)
-        //      samplers (combines a timestamp with output values and interpolation)
-        //  So we need the joint, the timestamp, the values for each axis
+    public void exportGLTFAnimation(GlTF instance, int index) {
+        List<AnimationChannel> channels = new ArrayList<AnimationChannel>();
+        List<AnimationSampler> samplers = new ArrayList<AnimationSampler>();
 
-        List<AnimationChannel> channels = new ArrayList<>();
-        List<AnimationSampler> samplers = new ArrayList<>();
-
-        // Each TDTM Entry can only map one joint
+        // Each TDTM Entry can only map one joint, contains translation OR rotation OR scale
         for (int i = 0; i < tdtmEntry.size(); i++) {
             TDTMEntry tEntry = tdtmEntry.get(i);
             int jointId = tEntry.jointId;
+            float animDuration = (time2-time1)/1000;
+
+            System.out.println("TDTM Entry " + i);
+            System.out.println("Joint: " + jointId + ", Duration: " + animDuration);
 
             // Create an animation channel target
             AnimationChannelTarget act = new AnimationChannelTarget();
             act.setNode(jointId); // Set Node
-
-            float[] x_times = new float[0];
-            float[] x_values = new float[0];
-
-            float[] y_times =  new float[0];
-            float[] y_values = new float[0];
-
-            float[] z_times = new float[0];
-            float[] z_values = new float[0];
-
-            float[] w_times = new float[0];
-            float[] w_values = new float[0];
 
             // Linear 1D by default
             InterpolationMode interMode = InterpolationMode.LINEAR_1D;
@@ -168,7 +158,12 @@ public class TDTMKCAP extends AbstractKCAP {
             // Every 30 Frames by default
             TimeScale timeScale = TimeScale.EVERY_30_FRAMES;
 
-            System.out.println("TDTM Entry " + i);
+            List<Float> times = new ArrayList<Float>();
+
+            Dictionary<Float, Float> xValues = new Hashtable<>();
+            Dictionary<Float, Float> yValues = new Hashtable<>();
+            Dictionary<Float, Float> zValues = new Hashtable<>();
+            Dictionary<Float, Float> wValues = new Hashtable<>();
 
             QSTMPayload qstmPayload = qstm.get(tEntry.qstmId);
 
@@ -178,21 +173,21 @@ public class TDTMKCAP extends AbstractKCAP {
 
                 Axis axis = Axis.NONE;
 
-                float[] frames = new float[0];
-                float[] frameData = new float[0];
+                float[] qstmTimes = new float[0];
+                float[] qstmValues = new float[0];
 
                 switch(type.getId()) {
                     case 0: // QSTM00Entry, only 1 or 3 
-                        axis = ((QSTM00Entry)qEntry).getAxis();
-                        List<Float> values = ((QSTM00Entry)qEntry).getValues();
+                        // axis = ((QSTM00Entry)qEntry).getAxis();
+                        // List<Float> values = ((QSTM00Entry)qEntry).getValues();
 
-                        frames = new float[values.size()];
-                        frameData = new float[values.size()];
+                        // frames = new float[values.size()];
+                        // frameData = new float[values.size()];
 
-                        for (int k = 0; k < values.size(); k++) {
-                            frames[k] = k;
-                            frameData[k] = values.get(k);
-                        }
+                        // for (int k = 0; k < values.size(); k++) {
+                        //     frames[k] = k;
+                        //     frameData[k] = values.get(k);
+                        // }
 
                         break;
                     case 1: // QSTM01Entry, don't know how to do this yet
@@ -205,57 +200,84 @@ public class TDTMKCAP extends AbstractKCAP {
 
                         timeScale = vctmPayload.getTimeScale();
 
-                        frames = vctmPayload.getFrameList();
-                        frameData = vctmPayload.getFrameDataList();
+                        qstmTimes = vctmPayload.getFrameList();
+                        qstmValues = vctmPayload.getFrameDataList();
                         break;
                 }
                 
                 // Convert frames to seconds
-                float animDuration = time2-time1;
-                float[] timestamps = new float[frames.length];
                 
-                for (int k = 0; k < frames.length; k++) {
-                    timestamps[k] = (float) (animDuration * frames[k])/frames[frames.length-1];
+                float[] timestamps = new float[qstmTimes.length];
+                
+                for (int k = 0; k < qstmTimes.length; k++) {
+                    timestamps[k] = (animDuration)*(qstmTimes[k])/qstmTimes[qstmTimes.length-1];
                 }
 
-                switch(axis) {
-                    case X:
-                        x_times = timestamps;
-                        x_values = frameData;
-                        break;
-                    case Y:
-                        y_times = timestamps;
-                        y_values = frameData;
-                        break;
-                    case Z:
-                        z_times = timestamps;
-                        z_values = frameData;
-                        break;
-                    case W:
-                        w_times = timestamps;
-                        w_values = frameData;
-                        break;
-                    default:
-                        x_times = timestamps;
-                        x_values = frameData;
-                        break;
+                for (int k = 0; k < timestamps.length; k++) {
+                    
+                    if (!times.contains(timestamps[k])) {
+                        times.add(timestamps[k]);
+                    }
+
+                    switch(axis) {
+                        case X:
+                            xValues.put(timestamps[k], qstmValues[k]);
+                            break;
+                        case Y:
+                            yValues.put(timestamps[k], qstmValues[k]);
+                            break;
+                        case Z:
+                            zValues.put(timestamps[k], qstmValues[k]);
+                            break;
+                        case W:
+                            wValues.put(timestamps[k], qstmValues[k]);
+                            break;
+                        default:
+                            break;
                 }
 
-                System.out.println("Joint: " + jointId + ", Duration: " + animDuration);
-                System.out.println("Axis: " + axis + ", Interpolation Mode: " + interMode + ", Time Scale: " + timeScale);
+                Collections.sort(times);
 
                 System.out.println("QSTM " + j + ": " + qEntry.getType());
-
-                for (int k = 0; k < frames.length; k++) {
-                    System.out.println(timestamps[k] + ": " + frameData[k]);
-                }
-                
+                System.out.println("Axis: " + axis + ", Interpolation Mode: " + interMode + ", Time Scale: " + timeScale);
             }
 
+            float[] posTimes = new float[times.size()];
+            float[][] posValues = new float[times.size()][3];
+
+            float[] rotTimes = new float[times.size()];
+            float[][] rotValues = new float[times.size()][4];
+
+            float[] scaTimes = new float[times.size()];
+            float[][] scaValues = new float[times.size()][3];
+
+            Arrays.fill(scaValues, 1);
+
+            switch(tEntry.mode) {
+                case TRANSLATION:
+                    act.setPath("translation");
+                    
+                    break;
+                case ROTATION:
+                    act.setPath("rotation");
+                    break;
+                case SCALE:
+                    act.setPath("scale");
+                    break;
+                default:
+                    break;
+            }
+
+            float[] best_times = x_times;
+
             // Create a buffer and accessor with the time stamps
-            int timeBuffer = arrayToBuffer(x_times, instance);
+            if (y_times.length > x_times.length) {
+                best_times = y_times;
+            }
+
+            int timeBuffer = arrayToBuffer(best_times, instance);
             int timeBufferView = createBufferView(timeBuffer, GL_ARRAY_BUFFER, "timeBV_"+i, instance);
-            int timeAccessor = createAccessor(timeBufferView, GL_FLOAT, x_times.length, "SCALAR", "timeAccessor_"+i, instance);
+            int timeAccessor = createAccessor(timeBufferView, GL_FLOAT, best_times.length, "SCALAR", "timeAccessor_"+i, instance);
 
             // Set them to be the input and output of the animation sampler
             AnimationSampler as = new AnimationSampler();
@@ -266,8 +288,8 @@ public class TDTMKCAP extends AbstractKCAP {
             int valBufferView;
             int valAccessor;
             float[][] vector = new float[3][];
-            int maxSize = 0;
 
+            int maxSize = 0;
             maxSize = Math.max(x_values.length, y_values.length);
             maxSize = Math.max(maxSize, z_values.length);
             maxSize = Math.max(maxSize, w_values.length);
@@ -318,7 +340,7 @@ public class TDTMKCAP extends AbstractKCAP {
                     // Create a buffer and accessor with the values
                     valBuffer = vectorToBuffer(vector, instance);
                     valBufferView = createBufferView(valBuffer, GL_ARRAY_BUFFER, "valueBV_"+i, instance);
-                    valAccessor = createAccessor(valBufferView, GL_FLOAT, vector.length, "VEC3", "valueAccessor_"+i, instance);
+                    valAccessor = createAccessor(valBufferView, GL_FLOAT, vector.length*vector[0].length, "VEC3", "valueAccessor_"+i, instance);
                     
                     as.setOutput(valAccessor);
                     break;
@@ -334,7 +356,7 @@ public class TDTMKCAP extends AbstractKCAP {
                     // Create a buffer and accessor with the values
                     valBuffer = vectorToBuffer(vector, instance);
                     valBufferView = createBufferView(valBuffer, GL_ARRAY_BUFFER, "valueBV_"+i, instance);
-                    valAccessor = createAccessor(valBufferView, GL_FLOAT, vector.length, "VEC4", "valueAccessor_"+i, instance);
+                    valAccessor = createAccessor(valBufferView, GL_FLOAT, vector.length*vector[0].length, "VEC4", "valueAccessor_"+i, instance);
                     
                     as.setOutput(valAccessor);
                     break;
@@ -349,11 +371,28 @@ public class TDTMKCAP extends AbstractKCAP {
                     // Create a buffer and accessor with the values
                     valBuffer = vectorToBuffer(vector, instance);
                     valBufferView = createBufferView(valBuffer, GL_ARRAY_BUFFER, "valueBV_"+i, instance);
-                    valAccessor = createAccessor(valBufferView, GL_FLOAT, vector.length, "VEC3", "valueAccessor_"+i, instance);
+                    valAccessor = createAccessor(valBufferView, GL_FLOAT, vector.length*vector[0].length, "VEC3", "valueAccessor_"+i, instance);
                     
                     as.setOutput(valAccessor);
                     break;
             }
+
+            
+            System.out.println(tEntry.mode);
+            System.out.println("time | x | y | z | w");
+
+            for (int k = 0; k < best_times.length; k++) {
+                System.out.println(best_times[k] + " | " + new_x_values[k] + " | " + new_y_values[k] + 
+                " | " + new_z_values[k] + " | " + new_w_values[k]);
+            }
+
+            AnimationChannel posChannel = new AnimationChannel();
+            AnimationChannel rotChannel = new AnimationChannel();
+            AnimationChannel scaChannel = new AnimationChannel();
+
+            AnimationSampler posSampler = new AnimationSampler();
+            AnimationSampler rotSampler = new AnimationSampler();
+            AnimationSampler scaSampler = new AnimationSampler();
 
             Sampler sampler = new Sampler();
             instance.addSamplers(sampler);
@@ -362,15 +401,22 @@ public class TDTMKCAP extends AbstractKCAP {
             AnimationChannel ac = new AnimationChannel();
             ac.setTarget(act);
             ac.setSampler(samplerIndex);
+
+            samplers.add(as);
+            channels.add(ac);
         }
+
+        
 
         Animation anim = new Animation();
 
-        // Error: number of channel elements is < 1 ?
+        anim.setName("anim_" + index);
         anim.setChannels(channels);
         anim.setSamplers(samplers);
 
         instance.addAnimations(anim);
+
+        System.out.println("Added animation");
     }
 
     private int arrayToBuffer(float[] arr, GlTF instance) {

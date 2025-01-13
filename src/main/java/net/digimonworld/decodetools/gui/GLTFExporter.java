@@ -294,7 +294,7 @@ public class GLTFExporter {
         for(int i = 0; i < tdtms.size(); i++) {
             TDTMKCAP tdtm = tdtms.get(i);
 
-            tdtm.exportGLTFAnimation(instance);
+            tdtm.exportGLTFAnimation(instance, i);
         }
     }
 

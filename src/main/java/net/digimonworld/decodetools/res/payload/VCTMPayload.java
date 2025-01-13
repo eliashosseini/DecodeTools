@@ -97,8 +97,7 @@ public class VCTMPayload extends ResPayload {
     public float[] getFrameList() {
         float[] frames = new float[numEntries];
 
-        // TODO: Account for time type?
-        System.out.println("Time Type: " + timeType);
+        //System.out.println("Time Type: " + timeType);
 
         for (int i = 0; i < numEntries; i++) {
             byte[] data = data1[i].getData();
@@ -118,11 +117,11 @@ public class VCTMPayload extends ResPayload {
             }
             frames[i] = (float)ByteBuffer.wrap(data).getInt();
 
-            StringBuilder sb = new StringBuilder();
-            for (byte b : data) {
-                sb.append(String.format("%02X ", b));
-            }
-            System.out.println(sb.toString() + " = " + frames[i]);
+            // StringBuilder sb = new StringBuilder();
+            // for (byte b : data) {
+            //     sb.append(String.format("%02X ", b));
+            // }
+            // System.out.println(sb.toString() + " = " + frames[i]);
         }
 
         return frames;
@@ -131,8 +130,7 @@ public class VCTMPayload extends ResPayload {
     public float[] getFrameDataList() {
         float[] frameData = new float[numEntries];
 
-        // TODO: Account for Component Type?
-        System.out.println("Component Type: " + componentType);
+        //System.out.println("Component Type: " + componentType);
 
         for (int i = 0; i < numEntries; i++) {
             byte[] data = data2[i].getData();
@@ -179,11 +177,11 @@ public class VCTMPayload extends ResPayload {
                     frameData[i] = 0;
             }
 
-            StringBuilder sb = new StringBuilder();
-            for (byte b : data) {
-                sb.append(String.format("%02X ", b));
-            }
-            System.out.println(sb.toString() + " = " + frameData[i]);
+            // StringBuilder sb = new StringBuilder();
+            // for (byte b : data) {
+            //     sb.append(String.format("%02X ", b));
+            // }
+            // System.out.println(sb.toString() + " = " + frameData[i]);
         }
 
         return frameData;
