@@ -25,6 +25,10 @@ public class QSTM00Entry implements QSTMEntry {
     public Axis getAxis() {
         return axis;
     }
+
+    public int getMode() {
+        return mode;
+    }
     
     public List<Float> getValues() {
         return values;
