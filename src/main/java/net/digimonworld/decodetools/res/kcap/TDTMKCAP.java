@@ -34,6 +34,7 @@ import net.digimonworld.decodetools.res.payload.VCTMPayload.InterpolationMode;
 import net.digimonworld.decodetools.res.payload.VCTMPayload.TimeScale;
 import net.digimonworld.decodetools.res.payload.qstm.Axis;
 import net.digimonworld.decodetools.res.payload.qstm.QSTM00Entry;
+import net.digimonworld.decodetools.res.payload.qstm.QSTM01Entry;
 import net.digimonworld.decodetools.res.payload.qstm.QSTM02Entry;
 import net.digimonworld.decodetools.res.payload.qstm.QSTMEntry;
 import net.digimonworld.decodetools.res.payload.qstm.QSTMEntryType;
@@ -164,6 +165,7 @@ public class TDTMKCAP extends AbstractKCAP {
             float wMax = Float.NEGATIVE_INFINITY;
 
             boolean has00data = false;
+            boolean has01data = false;
             boolean has02data = false;
 
             float[] qstm00data = { 0, 0, 0, 0 };
@@ -176,6 +178,11 @@ public class TDTMKCAP extends AbstractKCAP {
             Hashtable<Float, Float> wValues = new Hashtable<Float, Float>();
 
             QSTMPayload qstmPayload = qstm.get(tEntry.qstmId);
+
+            int qstm01src = 0;
+            int qstm01dest = 0;
+            int qstm01size = 0;
+            int qstm01mode = 0;
 
             for (int j = 0; j < qstmPayload.getEntries().size(); j++) {
                 QSTMEntry qEntry = qstmPayload.getEntries().get(j);
@@ -191,10 +198,6 @@ public class TDTMKCAP extends AbstractKCAP {
                         has00data = true;
 
                         List<Float> qstm0Values = ((QSTM00Entry)qEntry).getValues();
-
-                        // for (int k = 0; k < qstm0Values.size(); k++) {
-                        //     System.out.print(qstm0Values.get(k) + ", ");
-                        // }
 
                         if (qstm0Values.size() == 3) {
                             qstm00data[0] = qstm0Values.get(0);
@@ -212,7 +215,17 @@ public class TDTMKCAP extends AbstractKCAP {
                         }
                         break;
                     case 1: // QSTM01Entry, don't know how to do this yet
-                        System.out.println("QSTM type 01");
+                        has01data = true;
+
+                        qstm01src = ((QSTM01Entry)qEntry).getSrcId();
+                        qstm01dest = ((QSTM01Entry)qEntry).getDestId();
+                        qstm01size = ((QSTM01Entry)qEntry).getSizeData();
+                        qstm01mode = ((QSTM01Entry)qEntry).getMode();
+                        
+                        System.out.print("QSTM 01 ");
+                        System.out.println("Dest: " + qstm01dest + ", Src: " + qstm01src + ", Size: " + qstm01size +
+                        ", Mode: " + qstm01mode);
+
                         break;
                     case 2: // QSTM02Entry (has to access VCTM)
                         axis = ((QSTM02Entry)qEntry).getAxis();
@@ -267,6 +280,16 @@ public class TDTMKCAP extends AbstractKCAP {
                 //System.out.println();
             }
 
+            if (has01data) {
+                System.out.print("QSTM 0: ");
+                
+                for (int k = 0; k < qstm00data.length; k++) {
+                    System.out.print(qstm00data[k] + ", ");
+                }
+
+                System.out.println();
+            }
+
             if (has00data && !has02data) {
                 times.add((float)0.0);
                 xValues.put((float)0.0, qstm00data[0]);
@@ -298,9 +321,9 @@ public class TDTMKCAP extends AbstractKCAP {
                     timeMin = Math.min(timeMin, posTimes[k]);
                     timeMax = Math.max(timeMax, posTimes[k]);
 
-                    x = xValues.containsKey(times.get(k)) ? xValues.get(times.get(k)) + qstm00data[0] : 0;
-                    y = yValues.containsKey(times.get(k)) ? yValues.get(times.get(k)) + qstm00data[1] : 0;
-                    z = zValues.containsKey(times.get(k)) ? zValues.get(times.get(k)) + qstm00data[2] : 0;
+                    x = xValues.containsKey(times.get(k)) ? xValues.get(times.get(k)) : 0;
+                    y = yValues.containsKey(times.get(k)) ? yValues.get(times.get(k)) : 0;
+                    z = zValues.containsKey(times.get(k)) ? zValues.get(times.get(k)) : 0;
 
                     xMin = Math.min(xMin, x);
                     xMax = Math.max(xMax, x);
@@ -321,10 +344,10 @@ public class TDTMKCAP extends AbstractKCAP {
                     timeMin = Math.min(timeMin, rotTimes[k]);
                     timeMax = Math.max(timeMax, rotTimes[k]);
 
-                    x = xValues.containsKey(times.get(k)) ? xValues.get(times.get(k)) + qstm00data[0] : 0;
-                    y = yValues.containsKey(times.get(k)) ? yValues.get(times.get(k)) + qstm00data[1] : 0;
-                    z = zValues.containsKey(times.get(k)) ? zValues.get(times.get(k)) + qstm00data[2] : 0;
-                    w = wValues.containsKey(times.get(k)) ? wValues.get(times.get(k)) + qstm00data[3] : 0;
+                    x = xValues.containsKey(times.get(k)) ? xValues.get(times.get(k)) : 0;
+                    y = yValues.containsKey(times.get(k)) ? yValues.get(times.get(k)) : 0;
+                    z = zValues.containsKey(times.get(k)) ? zValues.get(times.get(k)) : 0;
+                    w = wValues.containsKey(times.get(k)) ? wValues.get(times.get(k)) : 0;
 
                     xMin = Math.min(xMin, x);
                     xMax = Math.max(xMax, x);
@@ -349,9 +372,9 @@ public class TDTMKCAP extends AbstractKCAP {
                     timeMin = Math.min(timeMin, scaTimes[k]);
                     timeMax = Math.max(timeMax, scaTimes[k]);
 
-                    x = xValues.containsKey(times.get(k)) ? xValues.get(times.get(k)) + qstm00data[0] : 1;
-                    y = yValues.containsKey(times.get(k)) ? yValues.get(times.get(k)) + qstm00data[1] : 1;
-                    z = zValues.containsKey(times.get(k)) ? zValues.get(times.get(k)) + qstm00data[2] : 1;
+                    x = xValues.containsKey(times.get(k)) ? xValues.get(times.get(k)) : 1;
+                    y = yValues.containsKey(times.get(k)) ? yValues.get(times.get(k)) : 1;
+                    z = zValues.containsKey(times.get(k)) ? zValues.get(times.get(k)) : 1;
 
                     xMin = Math.min(xMin, x);
                     xMax = Math.max(xMax, x);
@@ -379,11 +402,13 @@ public class TDTMKCAP extends AbstractKCAP {
             if (tEntry.mode == TDTMMode.TRANSLATION) {
                 act.setPath("translation");
 
-                // System.out.println("time | x | y | z");
+                if (has01data) {
+                    System.out.println("time | x | y | z");
 
-                // for (int k = 0; k < posTimes.length; k++) {
-                //     System.out.println(posTimes[k] + " | " + posValues[k][0] + " | " + posValues[k][1] + " | " + posValues[k][2]);
-                // }
+                    for (int k = 0; k < posTimes.length; k++) {
+                        System.out.println(posTimes[k] + " | " + posValues[k][0] + " | " + posValues[k][1] + " | " + posValues[k][2]);
+                    }
+                }
 
                 Number[] posInMin = { timeMin };
                 Number[] posInMax = { timeMax };
