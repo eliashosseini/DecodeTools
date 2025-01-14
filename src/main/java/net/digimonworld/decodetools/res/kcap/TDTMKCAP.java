@@ -115,14 +115,34 @@ public class TDTMKCAP extends AbstractKCAP {
         List<AnimationChannel> channels = new ArrayList<AnimationChannel>();
         List<AnimationSampler> samplers = new ArrayList<AnimationSampler>();
 
+        String name;
+
+        switch (index) {
+            case 0: name = "idle"; break;
+            case 1: name = "run"; break;
+            case 2: name = "happy"; break;
+            case 3: name = "refuse"; break;
+            case 4: name = "sleep"; break;
+            case 5: name = "exhausted"; break;
+            case 6: name = "attack"; break;
+            case 7: name = "attack2"; break;
+            case 9: name = "guard"; break;
+            case 10: name = "hit"; break;
+            case 11: name = "defeated"; break;
+            case 12: name = "specialattack"; break;
+
+            default: name = "anim_" + index; break;
+        }
+
+        System.out.println(name);
+
         // Each TDTM Entry can only map one joint, contains translation OR rotation OR scale
         for (int i = 0; i < tdtmEntry.size(); i++) {
             TDTMEntry tEntry = tdtmEntry.get(i);
             int jointId = tEntry.jointId;
             float animDuration = (time2-time1)/300;
 
-            System.out.println("TDTM Entry " + i);
-            System.out.println("Joint: " + jointId + ", Duration: " + animDuration);
+            System.out.println("TDTM Entry " + i + ": Joint " + jointId + ", Mode " + tEntry.mode);
 
             // Create an animation channel target
             AnimationChannelTarget act = new AnimationChannelTarget();
@@ -134,13 +154,6 @@ public class TDTMKCAP extends AbstractKCAP {
             // Every 30 Frames by default
             TimeScale timeScale = TimeScale.EVERY_30_FRAMES;
 
-            List<Float> times = new ArrayList<Float>();
-
-            Hashtable<Float, Float> xValues = new Hashtable<Float, Float>();
-            Hashtable<Float, Float> yValues = new Hashtable<Float, Float>();
-            Hashtable<Float, Float> zValues = new Hashtable<Float, Float>();
-            Hashtable<Float, Float> wValues = new Hashtable<Float, Float>();
-
             float xMin = Float.POSITIVE_INFINITY;
             float xMax = Float.NEGATIVE_INFINITY;
             float yMin = Float.POSITIVE_INFINITY;
@@ -150,7 +163,17 @@ public class TDTMKCAP extends AbstractKCAP {
             float wMin = Float.POSITIVE_INFINITY;
             float wMax = Float.NEGATIVE_INFINITY;
 
-            float[] offset = { 0, 0, 0, 0 };
+            boolean has00data = false;
+            boolean has02data = false;
+
+            float[] qstm00data = { 0, 0, 0, 0 };
+
+            List<Float> times = new ArrayList<Float>();
+
+            Hashtable<Float, Float> xValues = new Hashtable<Float, Float>();
+            Hashtable<Float, Float> yValues = new Hashtable<Float, Float>();
+            Hashtable<Float, Float> zValues = new Hashtable<Float, Float>();
+            Hashtable<Float, Float> wValues = new Hashtable<Float, Float>();
 
             QSTMPayload qstmPayload = qstm.get(tEntry.qstmId);
 
@@ -160,59 +183,48 @@ public class TDTMKCAP extends AbstractKCAP {
 
                 Axis axis = Axis.NONE;
 
-                float[] qstmTimes = new float[1];
-                float[][] qstmValues = new float[1][1];
-
-                System.out.println("QSTM " + j + ": " + qEntry.getType());
+                //System.out.print("QSTM " + j + " [" + qEntry.getType() + "]: ");
 
                 switch(type.getId()) {
-                    case 0: // QSTM00Entry, only 1 or 3
+                    case 0: // QSTM00Entry, for static values or 
                         axis = ((QSTM00Entry)qEntry).getAxis();
-
-                        System.out.println("Axis: " + axis);
+                        has00data = true;
 
                         List<Float> qstm0Values = ((QSTM00Entry)qEntry).getValues();
 
-                        if (qstm0Values.size() == 3) {
-                            offset[0] = qstm0Values.get(0);
-                            offset[1] = qstm0Values.get(1);
-                            offset[2] = qstm0Values.get(2);
-                        }
+                        // for (int k = 0; k < qstm0Values.size(); k++) {
+                        //     System.out.print(qstm0Values.get(k) + ", ");
+                        // }
 
-                        switch(axis) {
-                            case X:
-                                offset[0] = qstm0Values.get(0);
-                                break;
-                            case Y:
-                                offset[1] = qstm0Values.get(0);
-                                break;
-                            case Z:
-                                offset[2] = qstm0Values.get(0);
-                                break;
-                            case W:
-                                offset[3] = qstm0Values.get(0);
-                                break;
-                            case NONE:
-                                for (int k = 0; k < qstm0Values.size(); k++) {
-                                    offset[k] = qstm0Values.get(k);
-                                }
-                                break;
+                        if (qstm0Values.size() == 3) {
+                            qstm00data[0] = qstm0Values.get(0);
+                            qstm00data[1] = qstm0Values.get(1);
+                            qstm00data[2] = qstm0Values.get(2);
+                        }
+                        else {
+                            switch(axis) {
+                                case X: qstm00data[0] = qstm0Values.get(0); break;
+                                case Y: qstm00data[1] = qstm0Values.get(0); break;
+                                case Z: qstm00data[2] = qstm0Values.get(0); break;
+                                case W: qstm00data[3] = qstm0Values.get(0); break;
+                                case NONE: break;
+                            }
                         }
                         break;
                     case 1: // QSTM01Entry, don't know how to do this yet
+                        System.out.println("QSTM type 01");
                         break;
                     case 2: // QSTM02Entry (has to access VCTM)
                         axis = ((QSTM02Entry)qEntry).getAxis();
+                        has02data = true;
 
                         VCTMPayload vctmPayload = vctm.get(((QSTM02Entry)qEntry).getVctmId());
 
                         interMode = vctmPayload.getInterpolationMode();
                         timeScale = vctmPayload.getTimeScale();
 
-                        System.out.println("Axis: " + axis + ", Interpolation Mode: " + interMode + ", Time Scale: " + timeScale);
-
-                        qstmTimes = vctmPayload.getFrameList();
-                        qstmValues = vctmPayload.getFrameDataList();
+                        float[] qstmTimes = vctmPayload.getFrameList();
+                        float[][] qstmValues = vctmPayload.getFrameDataList();
 
                         // Convert frames to seconds
                         float[] timestamps = new float[qstmTimes.length];
@@ -222,7 +234,6 @@ public class TDTMKCAP extends AbstractKCAP {
                         }
 
                         for (int k = 0; k < timestamps.length; k++) {
-                            
                             if (!times.contains(timestamps[k])) {
                                 times.add(timestamps[k]);
                             }
@@ -230,39 +241,21 @@ public class TDTMKCAP extends AbstractKCAP {
                             if (qstmValues[0].length > 1) {
                                 for (int l = 0; l < qstmValues[0].length; l++) {
                                     switch(l) {
-                                        case 0:
-                                            xValues.put(timestamps[k], qstmValues[k][l]);
-                                            break;
-                                        case 1:
-                                            yValues.put(timestamps[k], qstmValues[k][l]);
-                                            break;
-                                        case 2:
-                                            zValues.put(timestamps[k], qstmValues[k][l]);
-                                            break;
-                                        case 3:
-                                            wValues.put(timestamps[k], qstmValues[k][l]);
-                                            break;
-                                        default:
-                                            break;
+                                        case 0: xValues.put(timestamps[k], qstmValues[k][l]); break;
+                                        case 1: yValues.put(timestamps[k], qstmValues[k][l]); break;
+                                        case 2: zValues.put(timestamps[k], qstmValues[k][l]); break;
+                                        case 3: wValues.put(timestamps[k], qstmValues[k][l]); break;
+                                        default: break;
                                     }
                                 }
                             }
                             else {
                                 switch(axis) {
-                                    case X:
-                                        xValues.put(timestamps[k], qstmValues[k][0]);
-                                        break;
-                                    case Y:
-                                        yValues.put(timestamps[k], qstmValues[k][0]);
-                                        break;
-                                    case Z:
-                                        zValues.put(timestamps[k], qstmValues[k][0]);
-                                        break;
-                                    case W:
-                                        wValues.put(timestamps[k], qstmValues[k][0]);
-                                        break;
-                                    default:
-                                        break;
+                                    case X: xValues.put(timestamps[k], qstmValues[k][0]); break;
+                                    case Y: yValues.put(timestamps[k], qstmValues[k][0]); break;
+                                    case Z: zValues.put(timestamps[k], qstmValues[k][0]); break;
+                                    case W: wValues.put(timestamps[k], qstmValues[k][0]); break;
+                                    default: break;
                                 }
                             }
                         }
@@ -270,11 +263,19 @@ public class TDTMKCAP extends AbstractKCAP {
                         Collections.sort(times);
                         break;
                 }
+
+                //System.out.println();
             }
 
-            if (times.size() < 1) {
-                continue;
+            if (has00data && !has02data) {
+                times.add((float)0.0);
+                xValues.put((float)0.0, qstm00data[0]);
+                yValues.put((float)0.0, qstm00data[1]);
+                zValues.put((float)0.0, qstm00data[2]);
+                wValues.put((float)0.0, qstm00data[3]);
             }
+
+            //System.out.println("Offset: " + offset[0] + ", " + offset[1] + ", " + offset[2] + ", " + offset[3]);
 
             float[] posTimes = new float[times.size()];
             float[][] posValues = new float[times.size()][3];
@@ -291,91 +292,79 @@ public class TDTMKCAP extends AbstractKCAP {
             float timeMax = Float.NEGATIVE_INFINITY;
 
             for (int k = 0; k < times.size(); k++) {
-                switch(tEntry.mode) {
-                    case TRANSLATION:
-                        posTimes[k] = times.get(k);
+                if (tEntry.mode == TDTMMode.TRANSLATION) {
+                    posTimes[k] = times.get(k);
 
-                        timeMin = Math.min(timeMin, posTimes[k]);
-                        timeMax = Math.max(timeMax, posTimes[k]);
+                    timeMin = Math.min(timeMin, posTimes[k]);
+                    timeMax = Math.max(timeMax, posTimes[k]);
 
-                        x = xValues.containsKey(times.get(k)) ? xValues.get(times.get(k)) + offset[0] : 0;
-                        y = yValues.containsKey(times.get(k)) ? yValues.get(times.get(k)) + offset[1] : 0;
-                        z = zValues.containsKey(times.get(k)) ? zValues.get(times.get(k)) + offset[2] : 0;
+                    x = xValues.containsKey(times.get(k)) ? xValues.get(times.get(k)) + qstm00data[0] : 0;
+                    y = yValues.containsKey(times.get(k)) ? yValues.get(times.get(k)) + qstm00data[1] : 0;
+                    z = zValues.containsKey(times.get(k)) ? zValues.get(times.get(k)) + qstm00data[2] : 0;
 
-                        xMin = Math.min(xMin, x);
-                        xMax = Math.max(xMax, x);
+                    xMin = Math.min(xMin, x);
+                    xMax = Math.max(xMax, x);
 
-                        yMin = Math.min(yMin, y);
-                        yMax = Math.max(yMax, y);
+                    yMin = Math.min(yMin, y);
+                    yMax = Math.max(yMax, y);
 
-                        zMin = Math.min(zMin, z);
-                        zMax = Math.max(zMax, z);
+                    zMin = Math.min(zMin, z);
+                    zMax = Math.max(zMax, z);
 
-                        posValues[k][0] = x;
-                        posValues[k][1] = y;
-                        posValues[k][2] = z;
+                    posValues[k][0] = x;
+                    posValues[k][1] = y;
+                    posValues[k][2] = z;
+                }
+                else if (tEntry.mode == TDTMMode.ROTATION) {
+                    rotTimes[k] = times.get(k);
 
-                        break;
-                    case ROTATION:
-                        rotTimes[k] = times.get(k);
+                    timeMin = Math.min(timeMin, rotTimes[k]);
+                    timeMax = Math.max(timeMax, rotTimes[k]);
 
-                        timeMin = Math.min(timeMin, rotTimes[k]);
-                        timeMax = Math.max(timeMax, rotTimes[k]);
+                    x = xValues.containsKey(times.get(k)) ? xValues.get(times.get(k)) + qstm00data[0] : 0;
+                    y = yValues.containsKey(times.get(k)) ? yValues.get(times.get(k)) + qstm00data[1] : 0;
+                    z = zValues.containsKey(times.get(k)) ? zValues.get(times.get(k)) + qstm00data[2] : 0;
+                    w = wValues.containsKey(times.get(k)) ? wValues.get(times.get(k)) + qstm00data[3] : 0;
 
-                        x = xValues.containsKey(times.get(k)) ? xValues.get(times.get(k)) + offset[0] : 0;
-                        y = yValues.containsKey(times.get(k)) ? yValues.get(times.get(k)) + offset[1] : 0;
-                        z = zValues.containsKey(times.get(k)) ? zValues.get(times.get(k)) + offset[2] : 0;
-                        w = wValues.containsKey(times.get(k)) ? wValues.get(times.get(k)) + offset[3] : 0;
+                    xMin = Math.min(xMin, x);
+                    xMax = Math.max(xMax, x);
 
-                        // x = 0;
-                        // y = 0;
-                        // z = 0;
-                        // w = 0;
+                    yMin = Math.min(yMin, y);
+                    yMax = Math.max(yMax, y);
 
-                        xMin = Math.min(xMin, x);
-                        xMax = Math.max(xMax, x);
+                    zMin = Math.min(zMin, z);
+                    zMax = Math.max(zMax, z);
 
-                        yMin = Math.min(yMin, y);
-                        yMax = Math.max(yMax, y);
+                    wMin = Math.min(wMin, w);
+                    wMax = Math.max(wMax, w);
 
-                        zMin = Math.min(zMin, z);
-                        zMax = Math.max(zMax, z);
+                    rotValues[k][0] = x;
+                    rotValues[k][1] = y;
+                    rotValues[k][2] = z;
+                    rotValues[k][3] = w;
+                }
+                else { // SCALE or LOCAL_SCALE
+                    scaTimes[k] = times.get(k);
 
-                        wMin = Math.min(wMin, w);
-                        wMax = Math.max(wMax, w);
+                    timeMin = Math.min(timeMin, scaTimes[k]);
+                    timeMax = Math.max(timeMax, scaTimes[k]);
 
-                        rotValues[k][0] = x;
-                        rotValues[k][1] = y;
-                        rotValues[k][2] = z;
-                        rotValues[k][3] = w;
+                    x = xValues.containsKey(times.get(k)) ? xValues.get(times.get(k)) + qstm00data[0] : 1;
+                    y = yValues.containsKey(times.get(k)) ? yValues.get(times.get(k)) + qstm00data[1] : 1;
+                    z = zValues.containsKey(times.get(k)) ? zValues.get(times.get(k)) + qstm00data[2] : 1;
 
-                        break;
-                    case SCALE:
-                        scaTimes[k] = times.get(k);
+                    xMin = Math.min(xMin, x);
+                    xMax = Math.max(xMax, x);
 
-                        timeMin = Math.min(timeMin, scaTimes[k]);
-                        timeMax = Math.max(timeMax, scaTimes[k]);
+                    yMin = Math.min(yMin, y);
+                    yMax = Math.max(yMax, y);
 
-                        x = xValues.containsKey(times.get(k)) ? xValues.get(times.get(k)) + offset[0] : 1;
-                        y = yValues.containsKey(times.get(k)) ? yValues.get(times.get(k)) + offset[1] : 1;
-                        z = zValues.containsKey(times.get(k)) ? zValues.get(times.get(k)) + offset[2] : 1;
-
-                        xMin = Math.min(xMin, x);
-                        xMax = Math.max(xMax, x);
-
-                        yMin = Math.min(yMin, y);
-                        yMax = Math.max(yMax, y);
-
-                        zMin = Math.min(zMin, z);
-                        zMax = Math.max(zMax, z);
-                        
-                        scaValues[k][0] = x;
-                        scaValues[k][1] = y;
-                        scaValues[k][2] = z;
-
-                        break;
-                    default:
-                        break;
+                    zMin = Math.min(zMin, z);
+                    zMax = Math.max(zMax, z);
+                    
+                    scaValues[k][0] = x;
+                    scaValues[k][1] = y;
+                    scaValues[k][2] = z;
                 }
             }
 
@@ -385,89 +374,85 @@ public class TDTMKCAP extends AbstractKCAP {
             int timeBuffer, timeBufferView, timeAccessor = 0;
             int valBuffer, valBufferView, valAccessor = 0;
 
-            System.out.println(tEntry.mode);
+            // System.out.println(tEntry.mode);
 
-            switch(tEntry.mode) {
-                case TRANSLATION:
-                    act.setPath("translation");
+            if (tEntry.mode == TDTMMode.TRANSLATION) {
+                act.setPath("translation");
 
-                    System.out.println("time | x | y | z");
+                // System.out.println("time | x | y | z");
 
-                    for (int k = 0; k < posTimes.length; k++) {
-                        System.out.println(posTimes[k] + " | " + posValues[k][0] + " | " + posValues[k][1] + " | " + posValues[k][2]);
-                    }
+                // for (int k = 0; k < posTimes.length; k++) {
+                //     System.out.println(posTimes[k] + " | " + posValues[k][0] + " | " + posValues[k][1] + " | " + posValues[k][2]);
+                // }
 
-                    Number[] posInMin = { timeMin };
-                    Number[] posInMax = { timeMax };
+                Number[] posInMin = { timeMin };
+                Number[] posInMax = { timeMax };
 
-                    Number[] posOutMin = { xMin, yMin, zMin };
-                    Number[] posOutMax = { xMax, yMax, zMax };
+                Number[] posOutMin = { xMin, yMin, zMin };
+                Number[] posOutMax = { xMax, yMax, zMax };
 
-                    timeBuffer = arrayToBuffer(posTimes, instance);
-                    timeBufferView = createBufferView(timeBuffer, 0, "posTimeBufferView_"+i, instance);
-                    timeAccessor = createAccessor(timeBufferView, GL_FLOAT, posTimes.length, "SCALAR", "posTimeAccessor_"+i, posInMax, posInMin, instance);
+                timeBuffer = arrayToBuffer(posTimes, instance);
+                timeBufferView = createBufferView(timeBuffer, 0, "posTimeBufferView_"+i, instance);
+                timeAccessor = createAccessor(timeBufferView, GL_FLOAT, posTimes.length, "SCALAR", "posTimeAccessor_"+i, posInMax, posInMin, instance);
 
-                    valBuffer = vectorToBuffer(posValues, instance);
-                    valBufferView = createBufferView(valBuffer, 0, "posValueBufferView_"+i, instance);
-                    valAccessor = createAccessor(valBufferView, GL_FLOAT, posValues.length, "VEC3", "posValueAccessor_"+i, posOutMax, posOutMin, instance);
+                valBuffer = vectorToBuffer(posValues, instance);
+                valBufferView = createBufferView(valBuffer, 0, "posValueBufferView_"+i, instance);
+                valAccessor = createAccessor(valBufferView, GL_FLOAT, posValues.length, "VEC3", "posValueAccessor_"+i, posOutMax, posOutMin, instance);
 
-                    as.setInput(timeAccessor);
-                    as.setOutput(valAccessor);
-                    break;
-                case ROTATION:
-                    act.setPath("rotation");
+                as.setInput(timeAccessor);
+                as.setOutput(valAccessor);
+            }
+            else if (tEntry.mode == TDTMMode.ROTATION) {
+                act.setPath("rotation");
 
-                    System.out.println("time | x | y | z | w");
+                // System.out.println("time | x | y | z | w");
 
-                    for (int k = 0; k < rotTimes.length; k++) {
-                        System.out.println(rotTimes[k] + " | " + rotValues[k][0] + " | " + rotValues[k][1] + " | " + rotValues[k][2] + " | " + rotValues[k][3]);
-                    }
+                // for (int k = 0; k < rotTimes.length; k++) {
+                //     System.out.println(rotTimes[k] + " | " + rotValues[k][0] + " | " + rotValues[k][1] + " | " + rotValues[k][2] + " | " + rotValues[k][3]);
+                // }
 
-                    Number[] rotInMin = { timeMin };
-                    Number[] rotInMax = { timeMax };
+                Number[] rotInMin = { timeMin };
+                Number[] rotInMax = { timeMax };
 
-                    Number[] rotOutMin = { xMin, yMin, zMin, wMin };
-                    Number[] rotOutMax = { xMax, yMax, zMax, wMax };
+                Number[] rotOutMin = { xMin, yMin, zMin, wMin };
+                Number[] rotOutMax = { xMax, yMax, zMax, wMax };
 
-                    timeBuffer = arrayToBuffer(rotTimes, instance);
-                    timeBufferView = createBufferView(timeBuffer, 0, "rotTimeBufferView_"+i, instance);
-                    timeAccessor = createAccessor(timeBufferView, GL_FLOAT, rotTimes.length, "SCALAR", "rotTimeAccessor_"+i, rotInMax, rotInMin, instance);
+                timeBuffer = arrayToBuffer(rotTimes, instance);
+                timeBufferView = createBufferView(timeBuffer, 0, "rotTimeBufferView_"+i, instance);
+                timeAccessor = createAccessor(timeBufferView, GL_FLOAT, rotTimes.length, "SCALAR", "rotTimeAccessor_"+i, rotInMax, rotInMin, instance);
 
-                    valBuffer = vectorToBuffer(rotValues, instance);
-                    valBufferView = createBufferView(valBuffer, 0, "rotValueBufferView_"+i, instance);
-                    valAccessor = createAccessor(valBufferView, GL_FLOAT, rotValues.length, "VEC4", "rotValueAccessor_"+i, rotOutMax, rotOutMin, instance);
+                valBuffer = vectorToBuffer(rotValues, instance);
+                valBufferView = createBufferView(valBuffer, 0, "rotValueBufferView_"+i, instance);
+                valAccessor = createAccessor(valBufferView, GL_FLOAT, rotValues.length, "VEC4", "rotValueAccessor_"+i, rotOutMax, rotOutMin, instance);
 
-                    as.setInput(timeAccessor);
-                    as.setOutput(valAccessor);
-                    break;
-                case SCALE:
-                    act.setPath("scale");
+                as.setInput(timeAccessor);
+                as.setOutput(valAccessor);
+            }
+            else {
+                act.setPath("scale");
 
-                    System.out.println("time | x | y | z");
+                // System.out.println("time | x | y | z");
 
-                    for (int k = 0; k < scaTimes.length; k++) {
-                        System.out.println(scaTimes[k] + " | " + scaValues[k][0] + " | " + scaValues[k][1] + " | " + scaValues[k][2]);
-                    }
+                // for (int k = 0; k < scaTimes.length; k++) {
+                //     System.out.println(scaTimes[k] + " | " + scaValues[k][0] + " | " + scaValues[k][1] + " | " + scaValues[k][2]);
+                // }
 
-                    Number[] scaInMin = { timeMin };
-                    Number[] scaInMax = { timeMax };
+                Number[] scaInMin = { timeMin };
+                Number[] scaInMax = { timeMax };
 
-                    Number[] scaOutMin = { xMin, yMin, zMin };
-                    Number[] scaOutMax = { xMax, yMax, zMax };
+                Number[] scaOutMin = { xMin, yMin, zMin };
+                Number[] scaOutMax = { xMax, yMax, zMax };
 
-                    timeBuffer = arrayToBuffer(scaTimes, instance);
-                    timeBufferView = createBufferView(timeBuffer, 0, "scaTimeBufferView_"+i, instance);
-                    timeAccessor = createAccessor(timeBufferView, GL_FLOAT, scaTimes.length, "SCALAR", "scaTimeAccessor_"+i, scaInMax, scaInMin, instance);
+                timeBuffer = arrayToBuffer(scaTimes, instance);
+                timeBufferView = createBufferView(timeBuffer, 0, "scaTimeBufferView_"+i, instance);
+                timeAccessor = createAccessor(timeBufferView, GL_FLOAT, scaTimes.length, "SCALAR", "scaTimeAccessor_"+i, scaInMax, scaInMin, instance);
 
-                    valBuffer = vectorToBuffer(scaValues, instance);
-                    valBufferView = createBufferView(valBuffer, 0, "scaValueBufferView_"+i, instance);
-                    valAccessor = createAccessor(valBufferView, GL_FLOAT, scaValues.length, "VEC3", "scaValueAccessor_"+i, scaOutMax, scaOutMin, instance);
+                valBuffer = vectorToBuffer(scaValues, instance);
+                valBufferView = createBufferView(valBuffer, 0, "scaValueBufferView_"+i, instance);
+                valAccessor = createAccessor(valBufferView, GL_FLOAT, scaValues.length, "VEC3", "scaValueAccessor_"+i, scaOutMax, scaOutMin, instance);
 
-                    as.setInput(timeAccessor);
-                    as.setOutput(valAccessor);
-                    break;
-                default:
-                    break;
+                as.setInput(timeAccessor);
+                as.setOutput(valAccessor);
             }
 
             samplers.add(as);
@@ -481,13 +466,11 @@ public class TDTMKCAP extends AbstractKCAP {
 
         Animation anim = new Animation();
 
-        anim.setName("anim_" + index);
+        anim.setName(name);
         anim.setChannels(channels);
         anim.setSamplers(samplers);
 
         instance.addAnimations(anim);
-
-        System.out.println("Added animation");
     }
 
     private int arrayToBuffer(float[] arr, GlTF instance) {

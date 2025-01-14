@@ -129,9 +129,6 @@ public class VCTMPayload extends ResPayload {
 
         float[][] frameData = new float[numEntries][compCount];
 
-        System.out.println("Component Type: " + componentType);
-        System.out.println("Data size: " + dataSize + " bytes");
-
         for (int i = 0; i < numEntries; i++) {
             byte[] data = data2[i].getData();
 
@@ -173,6 +170,8 @@ public class VCTMPayload extends ResPayload {
                         frameData[i][j] = convert16to32(ByteBuffer.wrap(float16data).getInt());
                         break;
                     case INT16:
+                        frameData[i][j] = Float.intBitsToFloat(ByteBuffer.wrap(splitData[j]).getInt());
+                        break;
                     case INT8:
                         frameData[i][j] = Float.intBitsToFloat(ByteBuffer.wrap(splitData[j]).getInt());
                         break;

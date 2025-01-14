@@ -98,13 +98,18 @@ public class GLTFExporter {
 
         // Get all TDTM KCAPs following HSMP until it hits another HSMP
         for (int i = 0; i < otherPayloads.size(); i++) {
-            if (otherPayloads.get(i).getType() == Payload.KCAP) {
-                if (hsmpflag1 && !hsmpflag2) {
+            if (hsmpflag1 && !hsmpflag2) {
+                if (otherPayloads.get(i).getType() == Payload.KCAP) {
                     if (((AbstractKCAP)otherPayloads.get(i)).getKCAPType() == KCAPType.TDTM) {
                         TDTMKCAP tdtm = (TDTMKCAP)otherPayloads.get(i);
                         tdtms.add(tdtm);
                     }
                 }
+                else {
+                    tdtms.add(null);
+                }
+            }
+            if (otherPayloads.get(i).getType() == Payload.KCAP) {
                 if (!hsmpflag1) {
                     if (((AbstractKCAP)otherPayloads.get(i)).getKCAPType() == KCAPType.HSMP) {
                         HSMPKCAP hsmp2 = (HSMPKCAP)otherPayloads.get(i);
@@ -293,8 +298,9 @@ public class GLTFExporter {
     private void createAnimations() {
         for(int i = 0; i < tdtms.size(); i++) {
             TDTMKCAP tdtm = tdtms.get(i);
-
-            tdtm.exportGLTFAnimation(instance, i);
+            if (tdtm != null) {
+                tdtm.exportGLTFAnimation(instance, i);
+            }
         }
     }
 
