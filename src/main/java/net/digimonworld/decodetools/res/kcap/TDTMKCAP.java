@@ -127,10 +127,12 @@ public class TDTMKCAP extends AbstractKCAP {
             case 5: name = "exhausted"; break;
             case 6: name = "attack"; break;
             case 7: name = "attack2"; break;
+            case 8: name = "attack3"; break;
             case 9: name = "guard"; break;
             case 10: name = "hit"; break;
             case 11: name = "defeated"; break;
             case 12: name = "specialattack"; break;
+            case 13: name = "backstep"; break;
 
             default: name = "anim_" + index; break;
         }
@@ -141,9 +143,7 @@ public class TDTMKCAP extends AbstractKCAP {
         for (int i = 0; i < tdtmEntry.size(); i++) {
             TDTMEntry tEntry = tdtmEntry.get(i);
             int jointId = tEntry.jointId;
-            float animDuration = (time2-time1)/300;
-
-            //System.out.println(tEntry.mode);
+            float animDuration = (time2-time1)/333;
 
             // Create an animation channel target
             AnimationChannelTarget act = new AnimationChannelTarget();
@@ -193,7 +193,7 @@ public class TDTMKCAP extends AbstractKCAP {
                 float[] timestamps = new float[qstmTimes.length];
                 
                 for (int j = 0; j < qstmTimes.length; j++) {
-                    timestamps[j] = (animDuration)*(qstmTimes[j])/qstmTimes[qstmTimes.length-1];
+                    timestamps[j] = (animDuration)*((qstmTimes[j])/qstmTimes[qstmTimes.length-1]);
                 }
 
                 for (int j = 0; j < timestamps.length; j++) {
@@ -250,7 +250,7 @@ public class TDTMKCAP extends AbstractKCAP {
                     int size = qEntry.getSizeData();
                     int mode = qEntry.getMode();
 
-                    System.out.println("QSTM01: mode " + mode + " size " + size + " src " + src + " dest " + dest);
+                    //System.out.println("QSTM01: mode " + mode + " size " + size + " src " + src + " dest " + dest);
 
                     Byte[] rawSrcData = new Byte[numBytes];
 
@@ -283,15 +283,9 @@ public class TDTMKCAP extends AbstractKCAP {
 
                 if (qstm00Entry != null) {
                     if (qstm00Entry.getMode() == 0) {
-                        System.out.println("QSTM00 Found with QSTM02");
+                        //System.out.println("QSTM00 Found with QSTM02");
                         axis = qstm00Entry.getAxis();
                         List<Float> qstm0Values = (qstm00Entry).getValues();
-
-                        System.out.print("Axis: " + axis + ", Values: ");
-                        for (float f : qstm0Values) {
-                            System.out.print(f + ", ");
-                        }
-                        System.out.println();
 
                         int start = 0;
     
@@ -305,12 +299,6 @@ public class TDTMKCAP extends AbstractKCAP {
                         for (int k = 0; k < qstm0Values.size(); k++) {
                             qstm00Mask[k+start] = qstm0Values.get(k);
                         }
-
-                        System.out.print("Mask: ");
-                        for (float f : qstm00Mask) {
-                            System.out.print(f + ", ");
-                        }
-                        System.out.println();
                     }
                     else {
                         System.out.println("Encountered QSTM00 with mode != 0");
