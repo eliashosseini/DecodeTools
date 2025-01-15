@@ -137,10 +137,9 @@ public class TDTMKCAP extends AbstractKCAP {
             default: name = "anim_" + index; break;
         }
 
-        System.out.println("Adding animation: " + name);
-
         // Each TDTM Entry can only map one joint, contains translation OR rotation OR scale
         for (int i = 0; i < tdtmEntry.size(); i++) {
+
             TDTMEntry tEntry = tdtmEntry.get(i);
             int jointId = tEntry.jointId;
             float animDuration = (time2-time1)/333;
@@ -170,10 +169,10 @@ public class TDTMKCAP extends AbstractKCAP {
 
             List<Float> times = new ArrayList<Float>();
 
-            List<Float> xValues = new ArrayList<Float>();
-            List<Float> yValues = new ArrayList<Float>();
-            List<Float> zValues = new ArrayList<Float>();
-            List<Float> wValues = new ArrayList<Float>();
+            Hashtable<Float, Float> xValues = new Hashtable<Float, Float>();
+            Hashtable<Float, Float>  yValues = new Hashtable<Float, Float>();
+            Hashtable<Float, Float>  zValues = new Hashtable<Float, Float>();
+            Hashtable<Float, Float>  wValues = new Hashtable<Float, Float>();
 
             // Get QSTM02Entry and VCTM first, then apply QSTM01Entry changes
             if (qstm02Entry != null) {
@@ -187,20 +186,7 @@ public class TDTMKCAP extends AbstractKCAP {
                 VCTMPayload vctmPayload = vctm.get(qstm02Entry.getVctmId());
 
                 //interMode = vctmPayload.getInterpolationMode();
-                //timeScale = vctmPayload.getTimeScale();
-
-                float[] qstmTimes = vctmPayload.getFrameList();
-                float[] timestamps = new float[qstmTimes.length];
-                
-                for (int j = 0; j < qstmTimes.length; j++) {
-                    timestamps[j] = (animDuration)*((qstmTimes[j])/qstmTimes[qstmTimes.length-1]);
-                }
-
-                for (int j = 0; j < timestamps.length; j++) {
-                    if (!times.contains(timestamps[j])) {
-                        times.add(timestamps[j]);
-                    }
-                }
+                TimeScale timeScale = vctmPayload.getTimeScale();
 
                 int numEntries = vctmPayload.getNumEntries();
                 int numBytes = vctmPayload.GetValueBytes();
@@ -209,8 +195,6 @@ public class TDTMKCAP extends AbstractKCAP {
                 for (int j = 0; j < numBytes; j++) {
                     zeros[j] = 0x00;
                 }
-
-                //Collections.sort(times);
 
                 for (int j = 0; j < numEntries; j++) {
                     Byte[][] rawFrameData = vctmPayload.getRawFrameData(j);
@@ -305,9 +289,22 @@ public class TDTMKCAP extends AbstractKCAP {
                     }
                 }
 
-                // Convert all raw bytes to floats or use QSTM 0 Mask
+                float[] qstmTimes = vctmPayload.getFrameList();
+                float[] timestamps = new float[qstmTimes.length];
+                
+                for (int j = 0; j < qstmTimes.length; j++) {
+                    timestamps[j] = (animDuration)*((qstmTimes[j])/qstmTimes[qstmTimes.length-1]);
+                }
+                for (int j = 0; j < timestamps.length; j++) {
+                    if (!times.contains(timestamps[j])) {
+                        times.add(timestamps[j]);
+                    }
+                }
 
-                for (int j = 0; j < numEntries; j++) {
+                Collections.sort(times);
+
+                // Convert all raw bytes to floats or use QSTM 0 Mask
+                for (int j = 0; j < times.size(); j++) {
                     if (qstm00Mask[0] == 0) {
                         if (rawXBytes.size() > j) {
                             byte[] rawXbytes = new byte[rawXBytes.get(j).length];
@@ -315,12 +312,11 @@ public class TDTMKCAP extends AbstractKCAP {
                             for (int k = 0; k < rawXBytes.get(j).length; k++) {
                                 rawXbytes[k] = rawXBytes.get(j)[k].byteValue();
                             }
-                            
-                            xValues.add(vctmPayload.convertBytesToFloat(rawXbytes));
+                            xValues.put(times.get(j), vctmPayload.convertBytesToFloat(rawXbytes));
                         }
                     }
                     else {
-                        xValues.add(qstm00Mask[0]);
+                        xValues.put(times.get(j), qstm00Mask[0]);
                     }
 
                     if (qstm00Mask[1] == 0) {
@@ -331,11 +327,11 @@ public class TDTMKCAP extends AbstractKCAP {
                                 rawYbytes[k] = rawYBytes.get(j)[k].byteValue();
                             }
                             
-                            yValues.add(vctmPayload.convertBytesToFloat(rawYbytes));
+                            yValues.put(times.get(j), vctmPayload.convertBytesToFloat(rawYbytes));
                         }
                     }
                     else {
-                        yValues.add(qstm00Mask[1]);
+                        yValues.put(times.get(j), qstm00Mask[1]);
                     }
 
                     if (qstm00Mask[2] == 0) {
@@ -346,11 +342,11 @@ public class TDTMKCAP extends AbstractKCAP {
                                 rawZbytes[k] = rawZBytes.get(j)[k].byteValue();
                             }
                             
-                            zValues.add(vctmPayload.convertBytesToFloat(rawZbytes));
+                            zValues.put(times.get(j), vctmPayload.convertBytesToFloat(rawZbytes));
                         }
                     }
                     else {
-                        zValues.add(qstm00Mask[2]);
+                        zValues.put(times.get(j), qstm00Mask[2]);
                     }
 
                     if (qstm00Mask[3] == 0) {
@@ -361,11 +357,11 @@ public class TDTMKCAP extends AbstractKCAP {
                                 rawWbytes[k] = rawWBytes.get(j)[k].byteValue();
                             }
                             
-                            wValues.add(vctmPayload.convertBytesToFloat(rawWbytes));
+                            wValues.put(times.get(j), vctmPayload.convertBytesToFloat(rawWbytes));
                         }
                     }
                     else {
-                        wValues.add(qstm00Mask[3]);
+                        wValues.put(times.get(j), qstm00Mask[3]);
                     }
                 }
             }
@@ -388,10 +384,10 @@ public class TDTMKCAP extends AbstractKCAP {
 
                     for (int k = 0; k < qstm0Values.size(); k++) {
                         switch(k+start) {
-                            case 0: xValues.add(qstm0Values.get(k)); break;
-                            case 1: yValues.add(qstm0Values.get(k)); break;
-                            case 2: zValues.add(qstm0Values.get(k)); break;
-                            case 3: wValues.add(qstm0Values.get(k)); break;
+                            case 0: xValues.put((float)0, qstm0Values.get(k)); break;
+                            case 1: yValues.put((float)0, qstm0Values.get(k)); break;
+                            case 2: zValues.put((float)0, qstm0Values.get(k)); break;
+                            case 3: wValues.put((float)0, qstm0Values.get(k)); break;
                         }
                     }
                 }
@@ -423,16 +419,16 @@ public class TDTMKCAP extends AbstractKCAP {
                 timeMin = Math.min(timeMin, finalTimes[k]);
                 timeMax = Math.max(timeMax, finalTimes[k]);
 
-                x = xValues.get(k);
-                y = yValues.get(k);
-                z = zValues.get(k);
+                x = xValues.get(times.get(k));
+                y = yValues.get(times.get(k));
+                z = zValues.get(times.get(k));
 
                 xMin = Math.min(xMin, x); xMax = Math.max(xMax, x);
                 yMin = Math.min(yMin, y); yMax = Math.max(yMax, y);
                 zMin = Math.min(zMin, z); zMax = Math.max(zMax, z);
 
                 if (tEntry.mode == TDTMMode.ROTATION) {
-                    w = wValues.get(k);
+                    w = wValues.get(times.get(k));
                     wMin = Math.min(wMin, w); wMax = Math.max(wMax, w);
 
                     finalValues4[k][0] = x;
@@ -445,7 +441,6 @@ public class TDTMKCAP extends AbstractKCAP {
                     finalValues3[k][1] = y;
                     finalValues3[k][2] = z;
                 }
-
             }
 
             AnimationSampler as = new AnimationSampler();
