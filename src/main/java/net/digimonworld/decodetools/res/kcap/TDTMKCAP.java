@@ -1,12 +1,10 @@
 package net.digimonworld.decodetools.res.kcap;
 
-import static de.javagl.jgltf.model.GltfConstants.GL_ARRAY_BUFFER;
 import static de.javagl.jgltf.model.GltfConstants.GL_FLOAT;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.Hashtable;
@@ -21,7 +19,6 @@ import de.javagl.jgltf.impl.v2.AnimationSampler;
 import de.javagl.jgltf.impl.v2.Buffer;
 import de.javagl.jgltf.impl.v2.BufferView;
 import de.javagl.jgltf.impl.v2.GlTF;
-import de.javagl.jgltf.impl.v2.Sampler;
 import net.digimonworld.decodetools.Main;
 import net.digimonworld.decodetools.core.Access;
 import net.digimonworld.decodetools.core.Utils;
@@ -30,8 +27,6 @@ import net.digimonworld.decodetools.res.ResData;
 import net.digimonworld.decodetools.res.ResPayload;
 import net.digimonworld.decodetools.res.payload.QSTMPayload;
 import net.digimonworld.decodetools.res.payload.VCTMPayload;
-import net.digimonworld.decodetools.res.payload.VCTMPayload.InterpolationMode;
-import net.digimonworld.decodetools.res.payload.VCTMPayload.TimeScale;
 import net.digimonworld.decodetools.res.payload.qstm.Axis;
 import net.digimonworld.decodetools.res.payload.qstm.QSTM00Entry;
 import net.digimonworld.decodetools.res.payload.qstm.QSTM01Entry;
@@ -39,7 +34,7 @@ import net.digimonworld.decodetools.res.payload.qstm.QSTM02Entry;
 import net.digimonworld.decodetools.res.payload.qstm.QSTMEntry;
 import net.digimonworld.decodetools.res.payload.qstm.QSTMEntryType;
 
-//TODO figure out how TDTM works and abstrahize it per entry
+
 // sets up the animation data, i.e. initial positions, which anim data to use and more
 public class TDTMKCAP extends AbstractKCAP {
     private static final int TDTM_VERSION = 2;
@@ -137,7 +132,7 @@ public class TDTMKCAP extends AbstractKCAP {
             default: name = "anim_" + index; break;
         }
 
-        System.out.println("Animation: " + name);
+        //System.out.println("Animation: " + name);
 
         // Each TDTM Entry can only map one joint, contains translation OR rotation OR scale
         for (int i = 0; i < tdtmEntry.size(); i++) {
@@ -190,7 +185,6 @@ public class TDTMKCAP extends AbstractKCAP {
                 VCTMPayload vctmPayload = vctm.get(qstm02Entry.getVctmId());
 
                 //interMode = vctmPayload.getInterpolationMode();
-                TimeScale timeScale = vctmPayload.getTimeScale();
 
                 int numEntries = vctmPayload.getNumEntries();
                 int numBytes = vctmPayload.GetValueBytes();
