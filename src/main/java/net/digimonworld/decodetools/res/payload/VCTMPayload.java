@@ -97,31 +97,95 @@ public class VCTMPayload extends ResPayload {
     public float[] getFrameList() {
         float[] frames = new float[numEntries];
 
-        //System.out.println("Time Type: " + timeType);
-
         for (int i = 0; i < numEntries; i++) {
             byte[] data = data1[i].getData();
-
-            if (data.length < 4) {
-                byte[] newData = new byte[4];
-                for (int j = 1; j <= 4; j++) {
-                    if (j > data.length) {
-                        newData[newData.length-j] = 0x00;
-                    }
-                    else {
-                        newData[newData.length-j] = data[data.length-j]; 
-                    }
-                }
-
-                data = newData;
-            }
-            frames[i] = Float.intBitsToFloat(ByteBuffer.wrap(data).getInt());
+            
+            frames[i] = convertBytesToTime(data);
+            frames[i] *= timeScale.value;
         }
 
         return frames;
     }
 
-    public float convertBytesToFloat(byte[] data) {
+    public float convertBytesToTime(byte[] data) {
+        reverseArray(data);
+
+        float finalVal = 0;
+
+        switch(timeType) {
+            case FLOAT: // float 32?
+                finalVal = ByteBuffer.wrap(data).getFloat();
+                break;
+            // case FLOAT16:
+            //     byte[] float16data = new byte[4];
+            //     float16data[0] = 0x00;
+            //     float16data[1] = 0x00;
+            //     float16data[2] = data[0];
+            //     float16data[3] = data[1];
+
+            //     finalVal = convert16to32(ByteBuffer.wrap(float16data).getInt());
+            //     break;
+            case INT16:
+                if (data.length < 4) {
+                    byte[] newData = new byte[4];
+                    for (int j = 1; j <= 4; j++) {
+                        if (j > data.length) {
+                            newData[newData.length-j] = 0x00;
+                        }
+                        else {
+                            newData[newData.length-j] = data[data.length-j]; 
+                        }
+                    }
+
+                    data = newData;
+                }
+                finalVal = Float.intBitsToFloat(ByteBuffer.wrap(data).getInt());
+                break;
+            case INT8:
+                if (data.length < 4) {
+                    byte[] newData = new byte[4];
+                    for (int j = 1; j <= 4; j++) {
+                        if (j > data.length) {
+                            newData[newData.length-j] = 0x00;
+                        }
+                        else {
+                            newData[newData.length-j] = data[data.length-j]; 
+                        }
+                    }
+
+                    data = newData;
+                }
+                finalVal = Float.intBitsToFloat(ByteBuffer.wrap(data).getInt());
+                break;
+            case UINT16:
+                byte[] uint16data = new byte[4];
+                uint16data[0] = 0x00;
+                uint16data[1] = 0x00;
+                uint16data[2] = data[0];
+                uint16data[3] = data[1];
+                
+                finalVal = Float.intBitsToFloat(ByteBuffer.wrap(uint16data).getInt());
+                data = uint16data;
+                break;
+            case UINT8:
+                byte[] uint8data = new byte[4];
+                uint8data[0] = 0x00;
+                uint8data[1] = 0x00;
+                uint8data[2] = 0x00;
+                uint8data[3] = data[0];
+                
+                finalVal = Float.intBitsToFloat(ByteBuffer.wrap(uint8data).getInt());
+                data = uint8data;
+                break;
+            default:
+                finalVal = 0;
+                break;
+        }
+
+        return finalVal;
+    }
+
+    public float convertBytesToValue(byte[] data) {
         reverseArray(data);
 
         float finalVal = 0;
@@ -348,6 +412,10 @@ public class VCTMPayload extends ResPayload {
         
         private TimeScale(float value) {
             this.value = value;
+        }
+
+        public float getValue() {
+            return value;
         }
     }
     

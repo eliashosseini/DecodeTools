@@ -137,12 +137,16 @@ public class TDTMKCAP extends AbstractKCAP {
             default: name = "anim_" + index; break;
         }
 
+        System.out.println("Animation: " + name);
+
         // Each TDTM Entry can only map one joint, contains translation OR rotation OR scale
         for (int i = 0; i < tdtmEntry.size(); i++) {
 
             TDTMEntry tEntry = tdtmEntry.get(i);
             int jointId = tEntry.jointId;
             float animDuration = (time2-time1)/333;
+
+            //System.out.println("Duration: " + animDuration);
 
             // Create an animation channel target
             AnimationChannelTarget act = new AnimationChannelTarget();
@@ -293,7 +297,7 @@ public class TDTMKCAP extends AbstractKCAP {
                 float[] timestamps = new float[qstmTimes.length];
                 
                 for (int j = 0; j < qstmTimes.length; j++) {
-                    timestamps[j] = (animDuration)*((qstmTimes[j])/qstmTimes[qstmTimes.length-1]);
+                    timestamps[j] = animDuration*((qstmTimes[j])/qstmTimes[qstmTimes.length-1]);
                 }
                 for (int j = 0; j < timestamps.length; j++) {
                     if (!times.contains(timestamps[j])) {
@@ -312,7 +316,7 @@ public class TDTMKCAP extends AbstractKCAP {
                             for (int k = 0; k < rawXBytes.get(j).length; k++) {
                                 rawXbytes[k] = rawXBytes.get(j)[k].byteValue();
                             }
-                            xValues.put(times.get(j), vctmPayload.convertBytesToFloat(rawXbytes));
+                            xValues.put(times.get(j), vctmPayload.convertBytesToValue(rawXbytes));
                         }
                     }
                     else {
@@ -327,7 +331,7 @@ public class TDTMKCAP extends AbstractKCAP {
                                 rawYbytes[k] = rawYBytes.get(j)[k].byteValue();
                             }
                             
-                            yValues.put(times.get(j), vctmPayload.convertBytesToFloat(rawYbytes));
+                            yValues.put(times.get(j), vctmPayload.convertBytesToValue(rawYbytes));
                         }
                     }
                     else {
@@ -342,7 +346,7 @@ public class TDTMKCAP extends AbstractKCAP {
                                 rawZbytes[k] = rawZBytes.get(j)[k].byteValue();
                             }
                             
-                            zValues.put(times.get(j), vctmPayload.convertBytesToFloat(rawZbytes));
+                            zValues.put(times.get(j), vctmPayload.convertBytesToValue(rawZbytes));
                         }
                     }
                     else {
@@ -357,7 +361,7 @@ public class TDTMKCAP extends AbstractKCAP {
                                 rawWbytes[k] = rawWBytes.get(j)[k].byteValue();
                             }
                             
-                            wValues.put(times.get(j), vctmPayload.convertBytesToFloat(rawWbytes));
+                            wValues.put(times.get(j), vctmPayload.convertBytesToValue(rawWbytes));
                         }
                     }
                     else {
