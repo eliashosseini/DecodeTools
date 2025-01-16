@@ -22,6 +22,10 @@ public class HSEM07Entry implements HSEMEntry {
         this.unkn4 = e;
     }
 
+    public int getTransparency() {
+        return unkn3;
+    }
+
     @Override
     public void writeKCAP(Access dest) {
         dest.writeShort((short) getHSEMType().getId());

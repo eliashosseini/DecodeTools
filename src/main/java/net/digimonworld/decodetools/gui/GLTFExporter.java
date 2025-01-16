@@ -84,6 +84,8 @@ public class GLTFExporter {
     private Map<Short, Short> textureAssignment = new HashMap<>();
     private HSEMMaterialEntry activeMaterial = null;
 
+    private int entry07Opacity = 0;
+
     private int geomId = 0;
     private Node rootNode = new Node();
 
@@ -208,13 +210,9 @@ public class GLTFExporter {
             instance.addTextures(texture);
 
             // Create Material and link it to the Texture
-            // TODO use actual material data from LRTM section
             Material material = new Material();
             material.setDoubleSided(true);
             material.setName(imageName + "_material");
-            if (gmio.getFormat().hasAlpha())
-                material.setAlphaMode("MASK"); // "BLEND" for transparent
-                //material.setAlphaCutoff((float)0.5);
 
             MaterialPbrMetallicRoughness pbrMetallicRoughness = new MaterialPbrMetallicRoughness();
             TextureInfo baseColorTextureInfo = new TextureInfo();
@@ -295,16 +293,6 @@ public class GLTFExporter {
         }
     }
 
-    // Generate animations
-    private void createAnimations() {
-        for(int i = 0; i < tdtms.size(); i++) {
-            TDTMKCAP tdtm = tdtms.get(i);
-            if (tdtm != null) {
-                tdtm.exportGLTFAnimation(instance, i);
-            }
-        }
-    }
-
     private void createGeometry() {
         for (HSEMPayload hsem : hsmp.getHSEM().getHSEMEntries()) {
             Map<String, String> extra = new HashMap<>();
@@ -319,6 +307,16 @@ public class GLTFExporter {
             for (HSEMEntry entry : hsem.getEntries())
                 processHSEM(entry, extra);
 
+        }
+    }
+
+    // Generate animations
+    private void createAnimations() {
+        for(int i = 0; i < tdtms.size(); i++) {
+            TDTMKCAP tdtm = tdtms.get(i);
+            if (tdtm != null) {
+                tdtm.exportGLTFAnimation(instance, i);
+            }
         }
     }
 
@@ -402,9 +400,33 @@ public class GLTFExporter {
         }
 
         // TODO deal with materials proper, support multiple textures and LRTM
-        if (textureAssignment.getOrDefault((short) 0, (short) -1) != -1)
-            primitive.setMaterial(textureAssignment.get((short) 0).intValue());
+        if (textureAssignment.getOrDefault((short) 0, (short) -1) != -1) {
+            int matIndex = textureAssignment.get((short) 0).intValue();
 
+            Material newMat = new Material();
+            int newMatIndex = 0;
+
+            switch(entry07Opacity) {
+                case 513: // BLEND
+                    newMat = instance.getMaterials().get(matIndex);
+                    newMat.setAlphaMode("BLEND");
+                    instance.addMaterials(newMat);
+                    newMatIndex = instance.getMaterials().size()-1;
+                    primitive.setMaterial(newMatIndex);
+                    break;
+                case 256: // MASK
+                    newMat = instance.getMaterials().get(matIndex);
+                    newMat.setAlphaMode("MASK");
+                    instance.addMaterials(newMat);
+                    newMatIndex = instance.getMaterials().size()-1;
+                    primitive.setMaterial(newMatIndex);
+                    break;
+                default:
+                    primitive.setMaterial(matIndex);
+
+            }
+        }
+        
         Mesh mesh = new Mesh();
         mesh.setExtras(extra);
         mesh.addPrimitives(primitive);
@@ -424,7 +446,9 @@ public class GLTFExporter {
         switch (entry.getHSEMType()) {
             // unknown/unhandled
             case UNK03:
+                break;
             case UNK07:
+
                 break;
 
             case JOINT:
@@ -436,7 +460,7 @@ public class GLTFExporter {
                 break;
 
             case MATERIAL:
-                activeMaterial = ((HSEMMaterialEntry) entry);
+                activeMaterial = (HSEMMaterialEntry) entry;
                 break;
 
             case DRAW:
