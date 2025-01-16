@@ -63,6 +63,7 @@ import net.digimonworld.decodetools.res.payload.RTCLPayload;
 import net.digimonworld.decodetools.res.payload.TNOJPayload;
 import net.digimonworld.decodetools.res.payload.XDIOPayload;
 import net.digimonworld.decodetools.res.payload.XTVOPayload;
+import net.digimonworld.decodetools.res.payload.hsem.HSEM07Entry;
 import net.digimonworld.decodetools.res.payload.hsem.HSEMDrawEntry;
 import net.digimonworld.decodetools.res.payload.hsem.HSEMEntry;
 import net.digimonworld.decodetools.res.payload.hsem.HSEMJointEntry;
@@ -448,7 +449,7 @@ public class GLTFExporter {
             case UNK03:
                 break;
             case UNK07:
-
+                entry07Opacity = ((HSEM07Entry)entry).getTransparency();
                 break;
 
             case JOINT:
