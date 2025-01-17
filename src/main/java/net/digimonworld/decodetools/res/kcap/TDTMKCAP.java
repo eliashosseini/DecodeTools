@@ -142,6 +142,7 @@ public class TDTMKCAP extends AbstractKCAP {
             float animDuration = (time2-time1)/333;
 
             //System.out.println("Duration: " + animDuration);
+            //System.out.println("Joint: " + jointId + " " + tEntry.mode);
 
             // Create an animation channel target
             AnimationChannelTarget act = new AnimationChannelTarget();
@@ -310,7 +311,15 @@ public class TDTMKCAP extends AbstractKCAP {
                             for (int k = 0; k < rawXBytes.get(j).length; k++) {
                                 rawXbytes[k] = rawXBytes.get(j)[k].byteValue();
                             }
-                            xValues.put(times.get(j), vctmPayload.convertBytesToValue(rawXbytes));
+
+                            float val = vctmPayload.convertBytesToValue(rawXbytes);
+
+                            if (tEntry.mode == TDTMMode.LOCAL_SCALE || tEntry.mode == TDTMMode.SCALE) {
+                                if (val == 0)
+                                    val = 1;
+                            }
+
+                            xValues.put(times.get(j), val);
                         }
                     }
                     else {
@@ -324,8 +333,15 @@ public class TDTMKCAP extends AbstractKCAP {
                             for (int k = 0; k < rawYBytes.get(j).length; k++) {
                                 rawYbytes[k] = rawYBytes.get(j)[k].byteValue();
                             }
+
+                            float val = vctmPayload.convertBytesToValue(rawYbytes);
+
+                            if (tEntry.mode == TDTMMode.LOCAL_SCALE || tEntry.mode == TDTMMode.SCALE) {
+                                if (val == 0)
+                                    val = 1;
+                            }
                             
-                            yValues.put(times.get(j), vctmPayload.convertBytesToValue(rawYbytes));
+                            yValues.put(times.get(j), val);
                         }
                     }
                     else {
@@ -339,8 +355,15 @@ public class TDTMKCAP extends AbstractKCAP {
                             for (int k = 0; k < rawZBytes.get(j).length; k++) {
                                 rawZbytes[k] = rawZBytes.get(j)[k].byteValue();
                             }
+
+                            float val = vctmPayload.convertBytesToValue(rawZbytes);
+
+                            if (tEntry.mode == TDTMMode.LOCAL_SCALE || tEntry.mode == TDTMMode.SCALE) {
+                                if (val == 0)
+                                    val = 1;
+                            }
                             
-                            zValues.put(times.get(j), vctmPayload.convertBytesToValue(rawZbytes));
+                            zValues.put(times.get(j), val);
                         }
                     }
                     else {
