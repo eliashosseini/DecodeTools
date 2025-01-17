@@ -214,6 +214,7 @@ public class GLTFExporter {
             Material material = new Material();
             material.setDoubleSided(true);
             material.setName(imageName + "_material");
+            material.setAlphaMode("OPAQUE");
 
             MaterialPbrMetallicRoughness pbrMetallicRoughness = new MaterialPbrMetallicRoughness();
             TextureInfo baseColorTextureInfo = new TextureInfo();
@@ -407,24 +408,40 @@ public class GLTFExporter {
             Material newMat = new Material();
             int newMatIndex = 0;
 
-            switch(entry07Opacity) {
-                case 513: // BLEND
-                    newMat = instance.getMaterials().get(matIndex);
-                    newMat.setAlphaMode("BLEND");
-                    instance.addMaterials(newMat);
-                    newMatIndex = instance.getMaterials().size()-1;
-                    primitive.setMaterial(newMatIndex);
-                    break;
-                case 256: // MASK
-                    newMat = instance.getMaterials().get(matIndex);
-                    newMat.setAlphaMode("MASK");
-                    instance.addMaterials(newMat);
-                    newMatIndex = instance.getMaterials().size()-1;
-                    primitive.setMaterial(newMatIndex);
-                    break;
-                default:
-                    primitive.setMaterial(matIndex);
+            if (entry07Opacity > 256) {
+                newMat = new Material();
+                newMat.setDoubleSided(true);
+                newMat.setName("blend_material");
+                newMat.setAlphaMode("BLEND");
 
+                MaterialPbrMetallicRoughness pbrMetallicRoughness = new MaterialPbrMetallicRoughness();
+                TextureInfo baseColorTextureInfo = new TextureInfo();
+                baseColorTextureInfo.setIndex(matIndex);
+                pbrMetallicRoughness.setBaseColorTexture(baseColorTextureInfo);
+                newMat.setPbrMetallicRoughness(pbrMetallicRoughness);
+                
+                instance.addMaterials(newMat);
+                newMatIndex = instance.getMaterials().size()-1;
+                primitive.setMaterial(newMatIndex);
+            }
+            else if (entry07Opacity == 256) {
+                newMat = new Material();
+                newMat.setDoubleSided(true);
+                newMat.setName("blend_material");
+                newMat.setAlphaMode("MASK");
+
+                MaterialPbrMetallicRoughness pbrMetallicRoughness = new MaterialPbrMetallicRoughness();
+                TextureInfo baseColorTextureInfo = new TextureInfo();
+                baseColorTextureInfo.setIndex(matIndex);
+                pbrMetallicRoughness.setBaseColorTexture(baseColorTextureInfo);
+                newMat.setPbrMetallicRoughness(pbrMetallicRoughness);
+                
+                instance.addMaterials(newMat);
+                newMatIndex = instance.getMaterials().size()-1;
+                primitive.setMaterial(newMatIndex);
+            }
+            else {
+                primitive.setMaterial(matIndex);
             }
         }
         
