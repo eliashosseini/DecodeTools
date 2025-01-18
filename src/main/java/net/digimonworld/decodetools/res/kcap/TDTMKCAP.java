@@ -132,7 +132,7 @@ public class TDTMKCAP extends AbstractKCAP {
             default: name = "anim_" + index; break;
         }
 
-        //System.out.println("Animation: " + name);
+        System.out.println("Animation: " + name);
 
         // Each TDTM Entry can only map one joint, contains translation OR rotation OR scale
         for (int i = 0; i < tdtmEntry.size(); i++) {
@@ -141,31 +141,13 @@ public class TDTMKCAP extends AbstractKCAP {
             int jointId = tEntry.jointId;
             float animDuration = (time2-time1)/333;
 
-            //System.out.println("Duration: " + animDuration);
-            //System.out.println("Joint: " + jointId + " " + tEntry.mode);
+            System.out.println("Joint: " + jointId + " " + tEntry.mode);
 
             // Create an animation channel target
             AnimationChannelTarget act = new AnimationChannelTarget();
             act.setNode(jointId); // Set Node
 
-            // Sort the QSTM Entries by type
-            QSTM00Entry qstm00Entry = null;
-            List<QSTM01Entry> qstm01Entries = new ArrayList<QSTM01Entry>();
-            QSTM02Entry qstm02Entry = null;
-
             QSTMPayload qstmPayload = qstm.get(tEntry.qstmId);
-
-            for (int j = 0; j < qstmPayload.getEntries().size(); j++) {
-                QSTMEntry qEntry = qstmPayload.getEntries().get(j);
-                QSTMEntryType type = qEntry.getType();
-
-                switch(type.getId()) {
-                    case 0: qstm00Entry = (QSTM00Entry)qEntry; break;
-                    case 1: qstm01Entries.add((QSTM01Entry)qEntry); break;
-                    case 2: qstm02Entry = (QSTM02Entry)qEntry; break;
-                    default: break;
-                }
-            }
 
             List<Float> times = new ArrayList<Float>();
 
@@ -174,246 +156,157 @@ public class TDTMKCAP extends AbstractKCAP {
             Hashtable<Float, Float>  zValues = new Hashtable<Float, Float>();
             Hashtable<Float, Float>  wValues = new Hashtable<Float, Float>();
 
-            // Get QSTM02Entry and VCTM first, then apply QSTM01Entry changes
-            if (qstm02Entry != null) {
-                List<Byte[]> rawXBytes = new ArrayList<Byte[]>();
-                List<Byte[]> rawYBytes = new ArrayList<Byte[]>();
-                List<Byte[]> rawZBytes = new ArrayList<Byte[]>();
-                List<Byte[]> rawWBytes = new ArrayList<Byte[]>();
+            for (int j = 0; j < qstmPayload.getEntries().size(); j++) {
+                QSTMEntry qEntry = qstmPayload.getEntries().get(j);
+                QSTMEntryType type = qEntry.getType();
 
-                Axis axis = (qstm02Entry).getAxis();
+                System.out.println("QSTM Type: " + type.getId());
 
-                VCTMPayload vctmPayload = vctm.get(qstm02Entry.getVctmId());
+                switch(type.getId()) {
+                    case 0:
+                        QSTM00Entry qstm00Entry = (QSTM00Entry)qEntry;
 
-                //interMode = vctmPayload.getInterpolationMode();
+                        if (qstm00Entry.getMode() == 0) {
+                            Axis axis = qstm00Entry.getAxis();
+                            List<Float> qstm0Values = (qstm00Entry).getValues();
 
-                int numEntries = vctmPayload.getNumEntries();
-                int numBytes = vctmPayload.GetValueBytes();
+                            float[] qstm00Mask = {0, 0, 0, 0};
+                            boolean[] qstm00Used = {false, false, false, false};
+        
+                            int start = 0;
 
-                Byte[] zeros = new Byte[numBytes];
-                for (int j = 0; j < numBytes; j++) {
-                    zeros[j] = 0x00;
-                }
+                            switch(axis) {
+                                case Y: start = 1; break;
+                                case Z: start = 2; break;
+                                case W: start = 3; break;
+                                default: break;
+                            }
+        
+                            for (int k = 0; k < qstm0Values.size(); k++) {
+                                qstm00Mask[k+start] = qstm0Values.get(k);
+                                qstm00Used[k+start] = true;
+                            }
 
-                for (int j = 0; j < numEntries; j++) {
-                    Byte[][] rawFrameData = vctmPayload.getRawFrameData(j);
+                            if (times.size() == 0) {
+                                times.add((float)0);
 
-                    boolean[] dataEntered = {false, false, false, false};
-                    
-                    int start = 0;
-
-                    switch(axis) {
-                        case Y: start = 1; break;
-                        case Z: start = 2; break;
-                        case W: start = 3; break;
-                        default: break;
-                    }
-
-                    for (int k = 0; k < rawFrameData.length; k++) {
-                        switch(k+start) {
-                            case 0: rawXBytes.add(rawFrameData[k]); dataEntered[0] = true; break;
-                            case 1: rawYBytes.add(rawFrameData[k]); dataEntered[1] = true; break;
-                            case 2: rawZBytes.add(rawFrameData[k]); dataEntered[2] = true; break;
-                            case 3: rawWBytes.add(rawFrameData[k]); dataEntered[3] = true; break;
+                                xValues.put((float)0, qstm00Mask[0]);
+                                yValues.put((float)0, qstm00Mask[1]);
+                                zValues.put((float)0, qstm00Mask[2]);
+                                wValues.put((float)0, qstm00Mask[3]);
+                            }
+                            else {
+                                for (int k = 0; k < times.size(); k++) {
+                                    if (qstm00Used[0]) { xValues.put(times.get(k), qstm00Mask[0]); }
+                                    if (qstm00Used[1]) { yValues.put(times.get(k), qstm00Mask[1]); }
+                                    if (qstm00Used[2]) { zValues.put(times.get(k), qstm00Mask[2]); }
+                                    if (qstm00Used[3]) { wValues.put(times.get(k), qstm00Mask[3]); }
+                                }
+                            }
+                            
                         }
-                    }
+                        else {
+                            System.out.println("Encountered QSTM00 with mode != 0");
+                        }
 
-                    if (!dataEntered[0]) rawXBytes.add(zeros);
-                    if (!dataEntered[1]) rawYBytes.add(zeros);
-                    if (!dataEntered[2]) rawZBytes.add(zeros);
-                    if (!dataEntered[3] && tEntry.mode == TDTMMode.ROTATION) rawWBytes.add(zeros);
-                }
+                        break;
+                    case 1:
+                        QSTM01Entry qstm01Entry = (QSTM01Entry)qEntry;
 
-                //Handle QSTM01 Entries
-                for (int j = 0; j < qstm01Entries.size(); j++) {
-                    QSTM01Entry qEntry = qstm01Entries.get(j);
+                        int dest = qstm01Entry.getDestId();
+                        int src = qstm01Entry.getSrcId();
+                        int size = qstm01Entry.getSizeData();
+                        int mode = qstm01Entry.getMode();
 
-                    int dest = qEntry.getDestId();
-                    int src = qEntry.getSrcId();
-                    int size = qEntry.getSizeData();
-                    int mode = qEntry.getMode();
+                        //System.out.println("QSTM01: mode " + mode + " size " + size + " src " + src + " dest " + dest);
 
-                    //System.out.println("QSTM01: mode " + mode + " size " + size + " src " + src + " dest " + dest);
+                        float temp = 0;
 
-                    Byte[] rawSrcData = new Byte[numBytes];
-
-                    if (mode == 0) {
-                        for (int k = 0; k < numEntries; k++) {
-                            for (int b = 0; b < numBytes; b++) {
+                        if (mode == 0) {
+                            for (int k = 0; k < times.size(); k++) {
                                 switch(src) {
-                                    case 0: rawSrcData[b] = rawZBytes.get(k)[b]; break;
-                                    case 1: rawSrcData[b] = rawXBytes.get(k)[b]; break;
-                                    case 2: rawSrcData[b] = rawYBytes.get(k)[b]; break;
+                                    case 0: temp = zValues.get(times.get(k)); break;
+                                    case 1: temp = xValues.get(times.get(k)); break;
+                                    case 2: temp = yValues.get(times.get(k)); break;
                                 }
-                            }
-    
-                            for (int b = 0; b < numBytes; b++) {
                                 switch(dest) {
-                                    case 0: rawZBytes.get(k)[b] = rawSrcData[b]; break;
-                                    case 1: rawXBytes.get(k)[b] = rawSrcData[b]; break;
-                                    case 2: rawYBytes.get(k)[b] = rawSrcData[b]; break;
+                                    case 0: zValues.put(times.get(k), temp); break;
+                                    case 1: xValues.put(times.get(k), temp); break;
+                                    case 2: yValues.put(times.get(k), temp); break;
                                 }
                             }
                         }
-                    }
-                    else {
-                        System.out.println("Encountered QSTM01 with mode != 0");
-                    }
-                }
-
-                // Handle QSTM00 Entries
-                float[] qstm00Mask = {0, 0, 0, 0};
-
-                if (qstm00Entry != null) {
-                    if (qstm00Entry.getMode() == 0) {
-                        //System.out.println("QSTM00 Found with QSTM02");
-                        axis = qstm00Entry.getAxis();
-                        List<Float> qstm0Values = (qstm00Entry).getValues();
-
-                        int start = 0;
-    
-                        switch(axis) {
-                            case Y: start = 1; break;
-                            case Z: start = 2; break;
-                            case W: start = 3; break;
-                            default: break;
+                        else {
+                            System.out.println("Encountered QSTM01 with mode != 0");
                         }
-    
-                        for (int k = 0; k < qstm0Values.size(); k++) {
-                            qstm00Mask[k+start] = qstm0Values.get(k);
+                        break;
+                    case 2:
+                        QSTM02Entry qstm02Entry = (QSTM02Entry)qEntry;
+
+                        Axis axis = (qstm02Entry).getAxis();
+
+                        VCTMPayload vctmPayload = vctm.get(qstm02Entry.getVctmId());
+
+                        float[] qstmTimes = vctmPayload.getFrameList();
+                        float[] timestamps = new float[qstmTimes.length];
+                        
+                        for (int k = 0; k < qstmTimes.length; k++) {
+                            timestamps[k] = animDuration*((qstmTimes[k])/qstmTimes[qstmTimes.length-1]);
                         }
-                    }
-                    else {
-                        System.out.println("Encountered QSTM00 with mode != 0");
-                    }
-                }
-
-                float[] qstmTimes = vctmPayload.getFrameList();
-                float[] timestamps = new float[qstmTimes.length];
-                
-                for (int j = 0; j < qstmTimes.length; j++) {
-                    timestamps[j] = animDuration*((qstmTimes[j])/qstmTimes[qstmTimes.length-1]);
-                }
-                for (int j = 0; j < timestamps.length; j++) {
-                    if (!times.contains(timestamps[j])) {
-                        times.add(timestamps[j]);
-                    }
-                }
-
-                Collections.sort(times);
-
-                // Convert all raw bytes to floats or use QSTM 0 Mask
-                for (int j = 0; j < times.size(); j++) {
-                    if (qstm00Mask[0] == 0) {
-                        if (rawXBytes.size() > j) {
-                            byte[] rawXbytes = new byte[rawXBytes.get(j).length];
-    
-                            for (int k = 0; k < rawXBytes.get(j).length; k++) {
-                                rawXbytes[k] = rawXBytes.get(j)[k].byteValue();
+                        for (int k = 0; k < timestamps.length; k++) {
+                            if (!times.contains(timestamps[k])) {
+                                times.add(timestamps[k]);
                             }
-
-                            float val = vctmPayload.convertBytesToValue(rawXbytes);
-
-                            if (tEntry.mode == TDTMMode.LOCAL_SCALE || tEntry.mode == TDTMMode.SCALE) {
-                                if (val == 0)
-                                    val = 1;
-                            }
-
-                            xValues.put(times.get(j), val);
                         }
-                    }
-                    else {
-                        xValues.put(times.get(j), qstm00Mask[0]);
-                    }
 
-                    if (qstm00Mask[1] == 0) {
-                        if (rawYBytes.size() > j) {
-                            byte[] rawYbytes = new byte[rawYBytes.get(j).length];
-        
-                            for (int k = 0; k < rawYBytes.get(j).length; k++) {
-                                rawYbytes[k] = rawYBytes.get(j)[k].byteValue();
-                            }
+                        Collections.sort(times);
 
-                            float val = vctmPayload.convertBytesToValue(rawYbytes);
+                        int numEntries = vctmPayload.getNumEntries();
+                        int numBytes = vctmPayload.GetValueBytes();
 
-                            if (tEntry.mode == TDTMMode.LOCAL_SCALE || tEntry.mode == TDTMMode.SCALE) {
-                                if (val == 0)
-                                    val = 1;
-                            }
+                        Byte[] zeros = new Byte[numBytes];
+                        for (int k = 0; k < numBytes; k++) {
+                            zeros[k] = 0x00;
+                        }
+
+                        for (int k = 0; k < times.size(); k++) {
+                            Byte[][] rawFrameData = vctmPayload.getRawFrameData(k);
+
+                            boolean[] dataEntered = {false, false, false, false};
                             
-                            yValues.put(times.get(j), val);
-                        }
-                    }
-                    else {
-                        yValues.put(times.get(j), qstm00Mask[1]);
-                    }
+                            int start = 0;
 
-                    if (qstm00Mask[2] == 0) {
-                        if (rawZBytes.size() > j) {
-                            byte[] rawZbytes = new byte[rawZBytes.get(j).length];
-        
-                            for (int k = 0; k < rawZBytes.get(j).length; k++) {
-                                rawZbytes[k] = rawZBytes.get(j)[k].byteValue();
+                            switch(axis) {
+                                case Y: start = 1; break;
+                                case Z: start = 2; break;
+                                case W: start = 3; break;
+                                default: break;
                             }
 
-                            float val = vctmPayload.convertBytesToValue(rawZbytes);
+                            for (int b = 0; b < rawFrameData.length; b++) {
+                                byte[] valBytes = new byte[numBytes];
+    
+                                for (int a = 0; a < valBytes.length; a++) {
+                                    valBytes[a] = rawFrameData[b][a].byteValue();
+                                }
 
-                            if (tEntry.mode == TDTMMode.LOCAL_SCALE || tEntry.mode == TDTMMode.SCALE) {
-                                if (val == 0)
-                                    val = 1;
+                                float val = vctmPayload.convertBytesToValue(valBytes);
+
+                                switch(b+start) {
+                                    case 0: xValues.put(times.get(k), val); dataEntered[0] = true; break;
+                                    case 1: yValues.put(times.get(k), val); dataEntered[1] = true; break;
+                                    case 2: zValues.put(times.get(k), val); dataEntered[2] = true; break;
+                                    case 3: wValues.put(times.get(k), val); dataEntered[3] = true; break;
+                                }
                             }
-                            
-                            zValues.put(times.get(j), val);
+
+                            if (!dataEntered[0]) xValues.put(times.get(k), (float)0);
+                            if (!dataEntered[1]) yValues.put(times.get(k), (float)0);
+                            if (!dataEntered[2]) zValues.put(times.get(k), (float)0);
+                            if (!dataEntered[3] && tEntry.mode == TDTMMode.ROTATION) wValues.put(times.get(k), (float)0);;
                         }
-                    }
-                    else {
-                        zValues.put(times.get(j), qstm00Mask[2]);
-                    }
-
-                    if (qstm00Mask[3] == 0) {
-                        if (rawWBytes.size() > j) {
-                            byte[] rawWbytes = new byte[rawWBytes.get(j).length];
-        
-                            for (int k = 0; k < rawWBytes.get(j).length; k++) {
-                                rawWbytes[k] = rawWBytes.get(j)[k].byteValue();
-                            }
-                            
-                            wValues.put(times.get(j), vctmPayload.convertBytesToValue(rawWbytes));
-                        }
-                    }
-                    else {
-                        wValues.put(times.get(j), qstm00Mask[3]);
-                    }
-                }
-            }
-            // When there's no QSTM02 Entry, but a QSTM00 Entry: Just add the floats...
-            else if (qstm00Entry != null) {
-                if (qstm00Entry.getMode() == 0) {
-                    Axis axis = qstm00Entry.getAxis();
-                    List<Float> qstm0Values = (qstm00Entry).getValues();
-
-                    times.add((float)0);
-
-                    int start = 0;
-
-                    switch(axis) {
-                        case Y: start = 1; break;
-                        case Z: start = 2; break;
-                        case W: start = 3; break;
-                        default: break;
-                    }
-
-                    for (int k = 0; k < qstm0Values.size(); k++) {
-                        switch(k+start) {
-                            case 0: xValues.put((float)0, qstm0Values.get(k)); break;
-                            case 1: yValues.put((float)0, qstm0Values.get(k)); break;
-                            case 2: zValues.put((float)0, qstm0Values.get(k)); break;
-                            case 3: wValues.put((float)0, qstm0Values.get(k)); break;
-                        }
-                    }
-                }
-                else {
-                    System.out.println("Encountered QSTM00 with mode != 0");
+                        break;
+                    default: break;
                 }
             }
 
@@ -443,6 +336,10 @@ public class TDTMKCAP extends AbstractKCAP {
                 x = xValues.get(times.get(k));
                 y = yValues.get(times.get(k));
                 z = zValues.get(times.get(k));
+
+                if (tEntry.mode == TDTMMode.TRANSLATION) {
+                    System.out.println(x + " | " + y + " | " + z);
+                }
 
                 xMin = Math.min(xMin, x); xMax = Math.max(xMax, x);
                 yMin = Math.min(yMin, y); yMax = Math.max(yMax, y);

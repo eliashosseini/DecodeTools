@@ -236,7 +236,7 @@ public class GLTFExporter {
 
         for (int i = 0; i < hsmp.getTNOJ().getEntryCount(); i++) {
             TNOJPayload j = hsmp.getTNOJ().get(i);
-
+            
             float[] rotation = new float[] { j.getRotationX(), j.getRotationY(), j.getRotationZ(), j.getRotationW() };
             float[] scale = new float[] { j.getLocalScaleX(), j.getLocalScaleY(), j.getLocalScaleZ() };
             float[] translation = new float[] { j.getXOffset(), j.getYOffset(), j.getZOffset() };
