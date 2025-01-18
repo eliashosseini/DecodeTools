@@ -249,6 +249,8 @@ public class GLTFExporter {
             instance.addNodes(node);
             jointsSkin.addJoints(instance.getNodes().size() - 1);
 
+            System.out.println("Joint " + i + " = " + j.getName());
+
             matrixList.add(j.getOffsetMatrix());
 
             if (j.getParentId() != -1) {

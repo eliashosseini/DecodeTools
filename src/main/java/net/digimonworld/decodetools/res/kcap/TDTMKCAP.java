@@ -139,9 +139,8 @@ public class TDTMKCAP extends AbstractKCAP {
 
             TDTMEntry tEntry = tdtmEntry.get(i);
             int jointId = tEntry.jointId;
-            float animDuration = (time2-time1)/333;
-
             System.out.println("Joint: " + jointId + " " + tEntry.mode);
+            float animDuration = (time2-time1)/333;
 
             // Create an animation channel target
             AnimationChannelTarget act = new AnimationChannelTarget();
@@ -156,6 +155,9 @@ public class TDTMKCAP extends AbstractKCAP {
             Hashtable<Float, Float>  zValues = new Hashtable<Float, Float>();
             Hashtable<Float, Float>  wValues = new Hashtable<Float, Float>();
 
+            boolean[] qstm00Used = {false, false, false, false};
+            float[] qstm00Mask = {0, 0, 0, 1};
+
             for (int j = 0; j < qstmPayload.getEntries().size(); j++) {
                 QSTMEntry qEntry = qstmPayload.getEntries().get(j);
                 QSTMEntryType type = qEntry.getType();
@@ -168,10 +170,24 @@ public class TDTMKCAP extends AbstractKCAP {
 
                         if (qstm00Entry.getMode() == 0) {
                             Axis axis = qstm00Entry.getAxis();
+
+                            System.out.println("Axis: " + axis);
+
                             List<Float> qstm0Values = (qstm00Entry).getValues();
 
-                            float[] qstm00Mask = {0, 0, 0, 0};
-                            boolean[] qstm00Used = {false, false, false, false};
+                            System.out.print("QSTM00:");
+
+                            for (float f : qstm0Values) {
+                                System.out.print(" " + f);
+                            }
+
+                            System.out.println();
+
+                            if (tEntry.mode == TDTMMode.SCALE ||  tEntry.mode == TDTMMode.LOCAL_SCALE) {
+                                qstm00Mask[0] = 1;
+                                qstm00Mask[1] = 1;
+                                qstm00Mask[2] = 1;
+                            }
         
                             int start = 0;
 
@@ -218,21 +234,21 @@ public class TDTMKCAP extends AbstractKCAP {
                         int size = qstm01Entry.getSizeData();
                         int mode = qstm01Entry.getMode();
 
-                        //System.out.println("QSTM01: mode " + mode + " size " + size + " src " + src + " dest " + dest);
+                        System.out.println("QSTM01: mode " + mode + " size " + size + " src " + src + " dest " + dest);
 
                         float temp = 0;
 
                         if (mode == 0) {
                             for (int k = 0; k < times.size(); k++) {
                                 switch(src) {
-                                    case 0: temp = zValues.get(times.get(k)); break;
-                                    case 1: temp = xValues.get(times.get(k)); break;
-                                    case 2: temp = yValues.get(times.get(k)); break;
+                                    case 0: temp = xValues.get(times.get(k)); break;
+                                    case 1: temp = yValues.get(times.get(k)); break;
+                                    case 2: temp = zValues.get(times.get(k)); break;
                                 }
                                 switch(dest) {
-                                    case 0: zValues.put(times.get(k), temp); break;
-                                    case 1: xValues.put(times.get(k), temp); break;
-                                    case 2: yValues.put(times.get(k), temp); break;
+                                    case 0: xValues.put(times.get(k), temp); break;
+                                    case 1: yValues.put(times.get(k), temp); break;
+                                    case 2: zValues.put(times.get(k), temp); break;
                                 }
                             }
                         }
@@ -244,6 +260,8 @@ public class TDTMKCAP extends AbstractKCAP {
                         QSTM02Entry qstm02Entry = (QSTM02Entry)qEntry;
 
                         Axis axis = (qstm02Entry).getAxis();
+
+                        System.out.println("Axis: " + axis);
 
                         VCTMPayload vctmPayload = vctm.get(qstm02Entry.getVctmId());
 
@@ -259,20 +277,34 @@ public class TDTMKCAP extends AbstractKCAP {
                             }
                         }
 
+                        System.out.println(vctmPayload.getTimeScale());
+
                         Collections.sort(times);
 
                         int numEntries = vctmPayload.getNumEntries();
                         int numBytes = vctmPayload.GetValueBytes();
 
-                        Byte[] zeros = new Byte[numBytes];
-                        for (int k = 0; k < numBytes; k++) {
-                            zeros[k] = 0x00;
+                        float extra = 0;
+
+                        if (tEntry.mode == TDTMMode.SCALE ||  tEntry.mode == TDTMMode.LOCAL_SCALE) {
+                            extra = 1;
                         }
 
-                        for (int k = 0; k < times.size(); k++) {
+                        for (int k = 0; k < numEntries; k++) {
                             Byte[][] rawFrameData = vctmPayload.getRawFrameData(k);
 
                             boolean[] dataEntered = {false, false, false, false};
+
+                            for (int b = 0; b < qstm00Mask.length; b++) {
+                                if (qstm00Used[b]) {
+                                    switch(b) {
+                                        case 0: xValues.put(timestamps[k], qstm00Mask[b]); dataEntered[0] = true; break;
+                                        case 1: yValues.put(timestamps[k], qstm00Mask[b]); dataEntered[1] = true; break;
+                                        case 2: zValues.put(timestamps[k], qstm00Mask[b]); dataEntered[2] = true; break;
+                                        case 3: wValues.put(timestamps[k], qstm00Mask[b]); dataEntered[3] = true; break;
+                                    }
+                                }
+                            }
                             
                             int start = 0;
 
@@ -283,6 +315,8 @@ public class TDTMKCAP extends AbstractKCAP {
                                 default: break;
                             }
 
+                            //System.out.print(timestamps[k] + ":");
+
                             for (int b = 0; b < rawFrameData.length; b++) {
                                 byte[] valBytes = new byte[numBytes];
     
@@ -292,18 +326,45 @@ public class TDTMKCAP extends AbstractKCAP {
 
                                 float val = vctmPayload.convertBytesToValue(valBytes);
 
+                                //System.out.print(" " + val);
+
                                 switch(b+start) {
-                                    case 0: xValues.put(times.get(k), val); dataEntered[0] = true; break;
-                                    case 1: yValues.put(times.get(k), val); dataEntered[1] = true; break;
-                                    case 2: zValues.put(times.get(k), val); dataEntered[2] = true; break;
-                                    case 3: wValues.put(times.get(k), val); dataEntered[3] = true; break;
+                                    case 0: xValues.put(timestamps[k], val); dataEntered[0] = true; break;
+                                    case 1: yValues.put(timestamps[k], val); dataEntered[1] = true; break;
+                                    case 2: zValues.put(timestamps[k], val); dataEntered[2] = true; break;
+                                    case 3: wValues.put(timestamps[k], val); dataEntered[3] = true; break;
                                 }
                             }
 
-                            if (!dataEntered[0]) xValues.put(times.get(k), (float)0);
-                            if (!dataEntered[1]) yValues.put(times.get(k), (float)0);
-                            if (!dataEntered[2]) zValues.put(times.get(k), (float)0);
-                            if (!dataEntered[3] && tEntry.mode == TDTMMode.ROTATION) wValues.put(times.get(k), (float)0);;
+                            //System.out.println();
+                            
+                            if (!dataEntered[0]) {
+                                if (qstm00Used[0]) {
+                                    xValues.put(timestamps[k], qstm00Mask[0]);
+                                }
+                                else {
+                                    xValues.put(timestamps[k], extra);
+                                }
+                            }
+                            if (!dataEntered[1]) {
+                                if (qstm00Used[1]) {
+                                    yValues.put(timestamps[k], qstm00Mask[1]);
+                                }
+                                else {
+                                    yValues.put(timestamps[k], extra);
+                                }
+                            }
+                            if (!dataEntered[2]) {
+                                if (qstm00Used[2]) {
+                                    zValues.put(timestamps[k], qstm00Mask[2]);
+                                }
+                                else {
+                                    zValues.put(timestamps[k], extra);
+                                }
+                            }
+                            if (!dataEntered[3] && tEntry.mode == TDTMMode.ROTATION) {
+                                wValues.put(timestamps[k], extra);
+                            }
                         }
                         break;
                     default: break;
@@ -337,9 +398,9 @@ public class TDTMKCAP extends AbstractKCAP {
                 y = yValues.get(times.get(k));
                 z = zValues.get(times.get(k));
 
-                if (tEntry.mode == TDTMMode.TRANSLATION) {
-                    System.out.println(x + " | " + y + " | " + z);
-                }
+                // if (tEntry.mode == TDTMMode.TRANSLATION) {
+                //     System.out.println(x + " | " + y + " | " + z);
+                // }
 
                 xMin = Math.min(xMin, x); xMax = Math.max(xMax, x);
                 yMin = Math.min(yMin, y); yMax = Math.max(yMax, y);
