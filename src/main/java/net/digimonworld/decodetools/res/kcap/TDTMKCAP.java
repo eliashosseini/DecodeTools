@@ -132,15 +132,19 @@ public class TDTMKCAP extends AbstractKCAP {
             default: name = "anim_" + index; break;
         }
 
-        System.out.println("Animation: " + name);
+        //System.out.println("Animation: " + name);
+
+        float animDuration = (time2-time1)/333;
+        
+        //System.out.println(time1 + ", " + time2 + ", " + time3 + ", " + time4);
+        //System.out.println(animDuration);
 
         // Each TDTM Entry can only map one joint, contains translation OR rotation OR scale
         for (int i = 0; i < tdtmEntry.size(); i++) {
 
             TDTMEntry tEntry = tdtmEntry.get(i);
             int jointId = tEntry.jointId;
-            System.out.println("Joint: " + jointId + " " + tEntry.mode);
-            float animDuration = (time2-time1)/333;
+            //System.out.println("Joint: " + jointId + " " + tEntry.mode);
 
             // Create an animation channel target
             AnimationChannelTarget act = new AnimationChannelTarget();
@@ -162,7 +166,7 @@ public class TDTMKCAP extends AbstractKCAP {
                 QSTMEntry qEntry = qstmPayload.getEntries().get(j);
                 QSTMEntryType type = qEntry.getType();
 
-                System.out.println("QSTM Type: " + type.getId());
+                // System.out.println("QSTM Type: " + type.getId());
 
                 switch(type.getId()) {
                     case 0:
@@ -171,17 +175,17 @@ public class TDTMKCAP extends AbstractKCAP {
                         if (qstm00Entry.getMode() == 0) {
                             Axis axis = qstm00Entry.getAxis();
 
-                            System.out.println("Axis: " + axis);
+                            // System.out.println("Axis: " + axis);
 
                             List<Float> qstm0Values = (qstm00Entry).getValues();
 
-                            System.out.print("QSTM00:");
+                            // System.out.print("QSTM00:");
 
-                            for (float f : qstm0Values) {
-                                System.out.print(" " + f);
-                            }
+                            // for (float f : qstm0Values) {
+                            //     System.out.print(" " + f);
+                            // }
 
-                            System.out.println();
+                            // System.out.println();
 
                             if (tEntry.mode == TDTMMode.SCALE ||  tEntry.mode == TDTMMode.LOCAL_SCALE) {
                                 qstm00Mask[0] = 1;
@@ -234,7 +238,7 @@ public class TDTMKCAP extends AbstractKCAP {
                         int size = qstm01Entry.getSizeData();
                         int mode = qstm01Entry.getMode();
 
-                        System.out.println("QSTM01: mode " + mode + " size " + size + " src " + src + " dest " + dest);
+                        //System.out.println("QSTM01: mode " + mode + " size " + size + " src " + src + " dest " + dest);
 
                         float temp = 0;
 
@@ -261,7 +265,7 @@ public class TDTMKCAP extends AbstractKCAP {
 
                         Axis axis = (qstm02Entry).getAxis();
 
-                        System.out.println("Axis: " + axis);
+                        //System.out.println("Axis: " + axis);
 
                         VCTMPayload vctmPayload = vctm.get(qstm02Entry.getVctmId());
 
@@ -272,12 +276,12 @@ public class TDTMKCAP extends AbstractKCAP {
                             timestamps[k] = animDuration*((qstmTimes[k])/qstmTimes[qstmTimes.length-1]);
                         }
                         for (int k = 0; k < timestamps.length; k++) {
-                            if (!times.contains(timestamps[k])) {
+                            if (!times.contains(timestamps[k]) && timestamps[k] <= animDuration) {
                                 times.add(timestamps[k]);
                             }
                         }
 
-                        System.out.println(vctmPayload.getTimeScale());
+                        //System.out.println(vctmPayload.getTimeScale());
 
                         Collections.sort(times);
 
@@ -421,6 +425,8 @@ public class TDTMKCAP extends AbstractKCAP {
                     finalValues3[k][2] = z;
                 }
             }
+
+            //System.out.println("Time Max: " + timeMax);
 
             AnimationSampler as = new AnimationSampler();
             as.setInterpolation("LINEAR");
