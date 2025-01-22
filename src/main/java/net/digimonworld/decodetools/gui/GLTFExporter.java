@@ -181,19 +181,13 @@ public class GLTFExporter {
         for (ResPayload payload : hsmp.getLRTM().getEntries()) {
             LRTMPayload lrtm = (LRTMPayload)payload;
 
-            int[] lrtmEmission = lrtm.getEmission();
-            int[] lrtmAmbient = lrtm.getAmbient();
-            int[] lrtmDiffuse = lrtm.getDiffuse();
+            // int[] lrtmEmission = lrtm.getEmission();
 
-            int[] lrtmSpecular0 = lrtm.getSpecular0();
-            int[] lrtmSpecular1 = lrtm.getSpecular1();
+            // float[] emissive = new float[3];
 
-            float[] emissive = new float[3];
-
-            for (int i = 0; i < 3; i++) {
-                emissive[i] = ((float)lrtmEmission[i])/(float)255;
-                System.out.println(emissive[i]);
-            }
+            // for (int i = 0; i < 3; i++) {
+            //     emissive[i] = ((float)lrtmEmission[i])/(float)255;
+            // }
 
             Material material = new Material();
             material.setDoubleSided(true);
@@ -201,8 +195,7 @@ public class GLTFExporter {
             material.setAlphaMode("OPAQUE");
 
             MaterialPbrMetallicRoughness pbrMetallicRoughness = new MaterialPbrMetallicRoughness();
-            //pbrMetallicRoughness.setRoughnessFactor((float)1-specular);
-            material.setEmissiveFactor(emissive);
+            //material.setEmissiveFactor(emissive);
             material.setPbrMetallicRoughness(pbrMetallicRoughness);
 
             instance.addMaterials(material);
@@ -248,11 +241,6 @@ public class GLTFExporter {
             texture.setName(imageName + "_texture");
             texture.setSource(instance.getImages().size() - 1); // Set the image index
             instance.addTextures(texture);
-
-            // Get Material and link it to the Texture
-            TextureInfo baseColorTextureInfo = new TextureInfo();
-            baseColorTextureInfo.setIndex(instance.getTextures().indexOf(texture)); // Set the texture index
-            instance.getMaterials().get(instance.getTextures().indexOf(texture)).getPbrMetallicRoughness().setBaseColorTexture(baseColorTextureInfo);
         }
     }
 
@@ -435,42 +423,34 @@ public class GLTFExporter {
 
         // TODO deal with materials proper, support multiple textures and LRTM
         if (textureAssignment.getOrDefault((short) 0, (short) -1) != -1) {
-            int matIndex = textureAssignment.get((short) 0).intValue();
+            int matIndex = activeMaterial.getMaterialId();
+            Material mat = instance.getMaterials().get(matIndex);
 
-            Material newMat = new Material();
-            int newMatIndex = 0;
+            int texIndex = textureAssignment.get((short) 0).intValue();
+            TextureInfo baseColorTextureInfo = new TextureInfo();
+            baseColorTextureInfo.setIndex(texIndex);
+
+            mat.getPbrMetallicRoughness().setBaseColorTexture(baseColorTextureInfo);
 
             if (entry07Opacity > 256) {
-                newMat = new Material();
+                Material newMat = new Material();
                 newMat.setDoubleSided(true);
-                newMat.setName("blend_material");
+                newMat.setName(mat.getName() + "_blend");
                 newMat.setAlphaMode("BLEND");
-
-                MaterialPbrMetallicRoughness pbrMetallicRoughness = new MaterialPbrMetallicRoughness();
-                TextureInfo baseColorTextureInfo = new TextureInfo();
-                baseColorTextureInfo.setIndex(matIndex);
-                pbrMetallicRoughness.setBaseColorTexture(baseColorTextureInfo);
+                MaterialPbrMetallicRoughness pbrMetallicRoughness = mat.getPbrMetallicRoughness();
                 newMat.setPbrMetallicRoughness(pbrMetallicRoughness);
-                
                 instance.addMaterials(newMat);
-                newMatIndex = instance.getMaterials().size()-1;
-                primitive.setMaterial(newMatIndex);
+                primitive.setMaterial(instance.getMaterials().size() - 1);
             }
             else if (entry07Opacity == 256) {
-                newMat = new Material();
+                Material newMat = new Material();
                 newMat.setDoubleSided(true);
-                newMat.setName("blend_material");
+                newMat.setName(mat.getName() + "_mask");
                 newMat.setAlphaMode("MASK");
-
-                MaterialPbrMetallicRoughness pbrMetallicRoughness = new MaterialPbrMetallicRoughness();
-                TextureInfo baseColorTextureInfo = new TextureInfo();
-                baseColorTextureInfo.setIndex(matIndex);
-                pbrMetallicRoughness.setBaseColorTexture(baseColorTextureInfo);
+                MaterialPbrMetallicRoughness pbrMetallicRoughness = mat.getPbrMetallicRoughness();
                 newMat.setPbrMetallicRoughness(pbrMetallicRoughness);
-                
                 instance.addMaterials(newMat);
-                newMatIndex = instance.getMaterials().size()-1;
-                primitive.setMaterial(newMatIndex);
+                primitive.setMaterial(instance.getMaterials().size() - 1);
             }
             else {
                 primitive.setMaterial(matIndex);
