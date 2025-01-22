@@ -238,7 +238,6 @@ public class VCTMPayload extends ResPayload {
     }
 
     private float convert16to32 (int float16bits) {
-
         int nonSign = float16bits & 0x7fff;
         int sign = float16bits & 0x8000;
         int exp = float16bits & 0x7c00;

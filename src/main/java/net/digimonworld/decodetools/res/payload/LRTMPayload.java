@@ -22,13 +22,17 @@ public class LRTMPayload extends NameablePayload {
     private LRTMUnkownType unknownType; // ??? type? 0-1
     private int colorFilter; // ?
     
-    private int color1; // ambient?
-    private int color2; // specular?
-    private int color3; // emission?
+    private int color1; // emission
+    private int color2; // ambient
+    private int color3; // diffuse
+    private int color4; // specular 0
+    private int color5; // specular 1
     
-    private int color4;
-    private int color5;
-    
+    private int[] emission = new int[4];
+    private int[] ambient = new int[4];
+    private int[] diffuse = new int[4];
+    private int[] spec0 = new int[4];
+    private int[] spec1 = new int[4];
     
     public LRTMPayload(Access source, int dataStart, AbstractKCAP parent, int size, String name) {
         super(parent, name);
@@ -48,13 +52,33 @@ public class LRTMPayload extends NameablePayload {
         source.readInteger(); // padding
         
         if(lightingSize == 0x0C) {
-            color1 = source.readInteger();
-            color2 = source.readInteger();
-            color3 = source.readInteger();
+            for (int i = 0; i < 4; i++) {
+                int colorValue = Byte.toUnsignedInt(source.readByte());
+                emission[3-i] = colorValue;
+            }
+            for (int i = 0; i < 4; i++) {
+                int colorValue = Byte.toUnsignedInt(source.readByte());
+                ambient[3-i] = colorValue;
+            }
+            for (int i = 0; i < 4; i++) {
+                int colorValue = Byte.toUnsignedInt(source.readByte());
+                diffuse[3-i] = colorValue;
+            }
+            // color1 = source.readInteger();
+            // color2 = source.readInteger();
+            // color3 = source.readInteger();
         }
         if(unknownSize == 0x08) {
-            color4 = source.readInteger();
-            color5 = source.readInteger();
+            for (int i = 0; i < 4; i++) {
+                int colorValue = Byte.toUnsignedInt(source.readByte());
+                spec0[3-i] = colorValue;
+            }
+            for (int i = 0; i < 4; i++) {
+                int colorValue = Byte.toUnsignedInt(source.readByte());
+                spec1[3-i] = colorValue;
+            }
+            // color4 = source.readInteger();
+            // color5 = source.readInteger();
         }
     }
     
@@ -97,6 +121,30 @@ public class LRTMPayload extends NameablePayload {
             dest.writeInteger(color4);
             dest.writeInteger(color5);
         }
+    }
+
+    public int[] getAmbient() {
+        return ambient;
+    }
+
+    public int[] getSpecular0() {
+        return spec0;
+    }
+
+    public int[] getSpecular1() {
+        return spec1;
+    }
+
+    public int[] getEmission() {
+        return emission;
+    }
+
+    public int[] getDiffuse() {
+        return diffuse;
+    }
+
+    public int getIndex() {
+        return index;
     }
     
     public int getColor1() {

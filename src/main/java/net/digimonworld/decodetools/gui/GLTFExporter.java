@@ -59,6 +59,7 @@ import net.digimonworld.decodetools.res.payload.GMIOPayload;
 import net.digimonworld.decodetools.res.payload.GMIOPayload.TextureFiltering;
 import net.digimonworld.decodetools.res.payload.GMIOPayload.TextureWrap;
 import net.digimonworld.decodetools.res.payload.HSEMPayload;
+import net.digimonworld.decodetools.res.payload.LRTMPayload;
 import net.digimonworld.decodetools.res.payload.RTCLPayload;
 import net.digimonworld.decodetools.res.payload.TNOJPayload;
 import net.digimonworld.decodetools.res.payload.XDIOPayload;
@@ -84,6 +85,8 @@ public class GLTFExporter {
     private Map<Short, Short> jointAssignment = new HashMap<>();
     private Map<Short, Short> textureAssignment = new HashMap<>();
     private HSEMMaterialEntry activeMaterial = null;
+
+    private List<Material> materials;
 
     private int entry07Opacity = 0;
 
@@ -147,6 +150,7 @@ public class GLTFExporter {
 
     private void initialize() {
         createAssetTag();
+        createMaterials();
         createTextures();
         createJoints();
         createLocations();
@@ -169,6 +173,41 @@ public class GLTFExporter {
         inputAsset.setVersion("2.0");
         inputAsset.setGenerator("jgltf-parent-2.0.3");
         instance.setAsset(inputAsset);
+    }
+
+    private void createMaterials() {
+        materials = new ArrayList<Material>();
+
+        for (ResPayload payload : hsmp.getLRTM().getEntries()) {
+            LRTMPayload lrtm = (LRTMPayload)payload;
+
+            int[] lrtmEmission = lrtm.getEmission();
+            int[] lrtmAmbient = lrtm.getAmbient();
+            int[] lrtmDiffuse = lrtm.getDiffuse();
+
+            int[] lrtmSpecular0 = lrtm.getSpecular0();
+            int[] lrtmSpecular1 = lrtm.getSpecular1();
+
+            float[] emissive = new float[3];
+
+            for (int i = 0; i < 3; i++) {
+                emissive[i] = ((float)lrtmEmission[i])/(float)255;
+                System.out.println(emissive[i]);
+            }
+
+            Material material = new Material();
+            material.setDoubleSided(true);
+            material.setName("material_" + lrtm.getIndex());
+            material.setAlphaMode("OPAQUE");
+
+            MaterialPbrMetallicRoughness pbrMetallicRoughness = new MaterialPbrMetallicRoughness();
+            //pbrMetallicRoughness.setRoughnessFactor((float)1-specular);
+            material.setEmissiveFactor(emissive);
+            material.setPbrMetallicRoughness(pbrMetallicRoughness);
+
+            instance.addMaterials(material);
+
+        }
     }
 
     private void createTextures() {
@@ -210,19 +249,10 @@ public class GLTFExporter {
             texture.setSource(instance.getImages().size() - 1); // Set the image index
             instance.addTextures(texture);
 
-            // Create Material and link it to the Texture
-            Material material = new Material();
-            material.setDoubleSided(true);
-            material.setName(imageName + "_material");
-            material.setAlphaMode("OPAQUE");
-
-            MaterialPbrMetallicRoughness pbrMetallicRoughness = new MaterialPbrMetallicRoughness();
+            // Get Material and link it to the Texture
             TextureInfo baseColorTextureInfo = new TextureInfo();
             baseColorTextureInfo.setIndex(instance.getTextures().indexOf(texture)); // Set the texture index
-            pbrMetallicRoughness.setBaseColorTexture(baseColorTextureInfo);
-            material.setPbrMetallicRoughness(pbrMetallicRoughness);
-
-            instance.addMaterials(material);
+            instance.getMaterials().get(instance.getTextures().indexOf(texture)).getPbrMetallicRoughness().setBaseColorTexture(baseColorTextureInfo);
         }
     }
 

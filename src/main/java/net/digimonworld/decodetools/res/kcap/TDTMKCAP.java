@@ -135,14 +135,16 @@ public class TDTMKCAP extends AbstractKCAP {
         //System.out.println("Animation: " + name);
 
         float animDuration = (time2-time1)/333;
-        
-        //System.out.println(time1 + ", " + time2 + ", " + time3 + ", " + time4);
-        //System.out.println(animDuration);
 
         // Each TDTM Entry can only map one joint, contains translation OR rotation OR scale
         for (int i = 0; i < tdtmEntry.size(); i++) {
-
             TDTMEntry tEntry = tdtmEntry.get(i);
+
+            // only handle joint animations
+            if (tEntry.transformType != 0x10) {
+                continue;
+            }
+
             int jointId = tEntry.jointId;
             //System.out.println("Joint: " + jointId + " " + tEntry.mode);
 
@@ -238,7 +240,7 @@ public class TDTMKCAP extends AbstractKCAP {
                         int size = qstm01Entry.getSizeData();
                         int mode = qstm01Entry.getMode();
 
-                        //System.out.println("QSTM01: mode " + mode + " size " + size + " src " + src + " dest " + dest);
+                        // System.out.println("QSTM01: mode " + mode + " size " + size + " src " + src + " dest " + dest);
 
                         float temp = 0;
 
@@ -265,7 +267,7 @@ public class TDTMKCAP extends AbstractKCAP {
 
                         Axis axis = (qstm02Entry).getAxis();
 
-                        //System.out.println("Axis: " + axis);
+                        // System.out.println("Axis: " + axis);
 
                         VCTMPayload vctmPayload = vctm.get(qstm02Entry.getVctmId());
 
@@ -319,7 +321,7 @@ public class TDTMKCAP extends AbstractKCAP {
                                 default: break;
                             }
 
-                            //System.out.print(timestamps[k] + ":");
+                            // System.out.print(timestamps[k] + ":");
 
                             for (int b = 0; b < rawFrameData.length; b++) {
                                 byte[] valBytes = new byte[numBytes];
@@ -330,7 +332,12 @@ public class TDTMKCAP extends AbstractKCAP {
 
                                 float val = vctmPayload.convertBytesToValue(valBytes);
 
-                                //System.out.print(" " + val);
+                                // for (int a = 0; a < valBytes.length; a++) {
+                                //     System.out.print(String.format("0x%02X ", valBytes[a]));
+                                // }
+                                // System.out.print(" =");
+
+                                // System.out.print(" " + val + " ");
 
                                 switch(b+start) {
                                     case 0: xValues.put(timestamps[k], val); dataEntered[0] = true; break;
@@ -340,7 +347,7 @@ public class TDTMKCAP extends AbstractKCAP {
                                 }
                             }
 
-                            //System.out.println();
+                            // System.out.println();
                             
                             if (!dataEntered[0]) {
                                 if (qstm00Used[0]) {
@@ -668,27 +675,27 @@ public class TDTMKCAP extends AbstractKCAP {
          * 0x20 texture  -> 2x translation | 1x rotation | 2x scale | none
          * 0x30 material -> 3x color (RGB) | 1x transparency
          */
-        private byte unknown2;
+        private byte transformType;
         private short jointId;
         private int qstmId;
         
         public TDTMEntry(TDTMMode unknown1, byte unknown2, short jointId, int qstmId) {
             this.mode = unknown1;
-            this.unknown2 = unknown2;
+            this.transformType = unknown2;
             this.jointId = jointId;
             this.qstmId = qstmId;
         }
         
         public TDTMEntry(Access source) {
             this.mode = TDTMMode.values()[source.readByte()];
-            this.unknown2 = source.readByte();
+            this.transformType = source.readByte();
             this.jointId = source.readShort();
             this.qstmId = source.readInteger();
         }
         
         public void writeKCAP(Access dest) {
             dest.writeByte((byte) mode.ordinal());
-            dest.writeByte(unknown2);
+            dest.writeByte(transformType);
             dest.writeShort(jointId);
             dest.writeInteger(qstmId);
         }
