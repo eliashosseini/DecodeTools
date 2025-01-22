@@ -146,7 +146,11 @@ public class TDTMKCAP extends AbstractKCAP {
             }
 
             int jointId = tEntry.jointId;
-            //System.out.println("Joint: " + jointId + " " + tEntry.mode);
+
+            // only handle joints in range that don't have defined matrices
+            if (jointId >= instance.getNodes().size() || instance.getNodes().get(jointId).getMatrix() != null) {
+                continue;
+            }
 
             // Create an animation channel target
             AnimationChannelTarget act = new AnimationChannelTarget();

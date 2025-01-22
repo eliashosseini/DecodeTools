@@ -192,7 +192,8 @@ public class GLTFExporter {
             Material material = new Material();
             material.setDoubleSided(true);
             material.setName("material_" + lrtm.getIndex());
-            material.setAlphaMode("OPAQUE");
+            material.setAlphaMode("MASK");
+            material.setAlphaCutoff(0.4f);
 
             MaterialPbrMetallicRoughness pbrMetallicRoughness = new MaterialPbrMetallicRoughness();
             //material.setEmissiveFactor(emissive);
@@ -437,21 +438,22 @@ public class GLTFExporter {
                 newMat.setDoubleSided(true);
                 newMat.setName(mat.getName() + "_blend");
                 newMat.setAlphaMode("BLEND");
+                newMat.setAlphaCutoff(0.6f);
                 MaterialPbrMetallicRoughness pbrMetallicRoughness = mat.getPbrMetallicRoughness();
                 newMat.setPbrMetallicRoughness(pbrMetallicRoughness);
                 instance.addMaterials(newMat);
                 primitive.setMaterial(instance.getMaterials().size() - 1);
             }
-            else if (entry07Opacity == 256) {
-                Material newMat = new Material();
-                newMat.setDoubleSided(true);
-                newMat.setName(mat.getName() + "_mask");
-                newMat.setAlphaMode("MASK");
-                MaterialPbrMetallicRoughness pbrMetallicRoughness = mat.getPbrMetallicRoughness();
-                newMat.setPbrMetallicRoughness(pbrMetallicRoughness);
-                instance.addMaterials(newMat);
-                primitive.setMaterial(instance.getMaterials().size() - 1);
-            }
+            // else if (entry07Opacity == 256) {
+            //     Material newMat = new Material();
+            //     newMat.setDoubleSided(true);
+            //     newMat.setName(mat.getName() + "_mask");
+            //     newMat.setAlphaMode("MASK");
+            //     MaterialPbrMetallicRoughness pbrMetallicRoughness = mat.getPbrMetallicRoughness();
+            //     newMat.setPbrMetallicRoughness(pbrMetallicRoughness);
+            //     instance.addMaterials(newMat);
+            //     primitive.setMaterial(instance.getMaterials().size() - 1);
+            // }
             else {
                 primitive.setMaterial(matIndex);
             }
