@@ -88,8 +88,8 @@ public class GLTFExporter {
 
     private List<Material> materials;
 
+    private int entry07Mask = 0;
     private int entry07Opacity = 0;
-
     private int geomId = 0;
     private Node rootNode = new Node();
 
@@ -192,7 +192,7 @@ public class GLTFExporter {
             Material material = new Material();
             material.setDoubleSided(true);
             material.setName("material_" + lrtm.getIndex());
-            material.setAlphaMode("MASK");
+            material.setAlphaMode("OPAQUE");
 
             MaterialPbrMetallicRoughness pbrMetallicRoughness = new MaterialPbrMetallicRoughness();
             //material.setEmissiveFactor(emissive);
@@ -317,6 +317,7 @@ public class GLTFExporter {
 
     private void createGeometry() {
         for (HSEMPayload hsem : hsmp.getHSEM().getHSEMEntries()) {
+            
             Map<String, String> extra = new HashMap<>();
             extra.put("id", Integer.toString(hsem.getId()));
             extra.put("unk1", Integer.toString(hsem.getUnknown1()));
@@ -328,8 +329,6 @@ public class GLTFExporter {
 
             for (HSEMEntry entry : hsem.getEntries())
                 processHSEM(entry, extra);
-                entry07Opacity = 0;
-                activeMaterial = null;
 
         }
     }
@@ -433,8 +432,8 @@ public class GLTFExporter {
             baseColorTextureInfo.setIndex(texIndex);
 
             mat.getPbrMetallicRoughness().setBaseColorTexture(baseColorTextureInfo);
-
-            if (entry07Opacity > 256) {
+             
+            if (entry07Opacity > 0) {
                 Material newMat = new Material();
                 newMat.setDoubleSided(true);
                 newMat.setName(mat.getName() + "_blend");
@@ -444,17 +443,18 @@ public class GLTFExporter {
                 instance.addMaterials(newMat);
                 primitive.setMaterial(instance.getMaterials().size() - 1);
             }
-            // else if (entry07Opacity == 256) {
-            //     Material newMat = new Material();
-            //     newMat.setDoubleSided(true);
-            //     newMat.setName(mat.getName() + "_mask");
-            //     newMat.setAlphaMode("MASK");
-            //     newMat.setAlphaCutoff(0.5f);
-            //     MaterialPbrMetallicRoughness pbrMetallicRoughness = mat.getPbrMetallicRoughness();
-            //     newMat.setPbrMetallicRoughness(pbrMetallicRoughness);
-            //     instance.addMaterials(newMat);
-            //     primitive.setMaterial(instance.getMaterials().size() - 1);
-            // }
+            else if (entry07Mask > 0)
+            {
+                Material newMat = new Material();
+                newMat.setDoubleSided(true);
+                newMat.setName(mat.getName() + "_mask");
+                newMat.setAlphaMode("MASK");
+                newMat.setAlphaCutoff(0.2f);
+                MaterialPbrMetallicRoughness pbrMetallicRoughness = mat.getPbrMetallicRoughness();
+                newMat.setPbrMetallicRoughness(pbrMetallicRoughness);
+                instance.addMaterials(newMat);
+                primitive.setMaterial(instance.getMaterials().size() - 1);
+            }
             else {
                 primitive.setMaterial(matIndex);
             }
@@ -481,7 +481,10 @@ public class GLTFExporter {
             case UNK03:
                 break;
             case UNK07:
+                
+                entry07Mask = ((HSEM07Entry)entry).getMask();
                 entry07Opacity = ((HSEM07Entry)entry).getTransparency();
+
                 break;
 
             case JOINT:
@@ -493,7 +496,7 @@ public class GLTFExporter {
                 break;
 
             case MATERIAL:
-                activeMaterial = (HSEMMaterialEntry) entry;
+                activeMaterial = (HSEMMaterialEntry) entry;                
                 break;
 
             case DRAW:

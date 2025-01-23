@@ -592,7 +592,7 @@ public class ModelImporter extends PayloadPanel {
                                             (short) 0x3001, (short) 0, 0x00010309, 0x73, 0x01));
             xdioPayload.add(new XDIOPayload(null, faces, (short) 0x3001, (short) 0, 5));
 
-            hsemPayload.add(new HSEM07Entry((short) 0x000F, (short) 0, (short) 0, (short) 0));
+            //hsemPayload.add(new HSEM07Entry((short) 0x000F, (short) 0, (short) 0, (short) 0));
             if (!boneMapping.isEmpty())
                 hsemPayload.add(new HSEMJointEntry(boneMapping));
             hsemPayload.add(new HSEMDrawEntry((short) 4, i, i, (short) 0, 0, faces.size() * 3));
