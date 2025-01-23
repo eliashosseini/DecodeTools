@@ -132,7 +132,7 @@ public class TDTMKCAP extends AbstractKCAP {
             default: name = "anim_" + index; break;
         }
 
-        //System.out.println("Animation: " + name);
+        // System.out.println("Animation: " + name);
 
         float animDuration = (time2-time1)/333;
 
@@ -146,6 +146,8 @@ public class TDTMKCAP extends AbstractKCAP {
             }
 
             int jointId = tEntry.jointId;
+
+            // System.out.println("Joint: " + jointId + ", " + tEntry.mode);
 
             // only handle joints in range that don't have defined matrices
             if (jointId >= instance.getNodes().size() || instance.getNodes().get(jointId).getMatrix() != null) {
@@ -172,7 +174,7 @@ public class TDTMKCAP extends AbstractKCAP {
                 QSTMEntry qEntry = qstmPayload.getEntries().get(j);
                 QSTMEntryType type = qEntry.getType();
 
-                // System.out.println("QSTM Type: " + type.getId());
+                // if (name == "idle") System.out.println("QSTM Type: " + type.getId());
 
                 switch(type.getId()) {
                     case 0:
@@ -181,17 +183,7 @@ public class TDTMKCAP extends AbstractKCAP {
                         if (qstm00Entry.getMode() == 0) {
                             Axis axis = qstm00Entry.getAxis();
 
-                            // System.out.println("Axis: " + axis);
-
                             List<Float> qstm0Values = (qstm00Entry).getValues();
-
-                            // System.out.print("QSTM00:");
-
-                            // for (float f : qstm0Values) {
-                            //     System.out.print(" " + f);
-                            // }
-
-                            // System.out.println();
 
                             if (tEntry.mode == TDTMMode.SCALE ||  tEntry.mode == TDTMMode.LOCAL_SCALE) {
                                 qstm00Mask[0] = 1;
@@ -271,8 +263,6 @@ public class TDTMKCAP extends AbstractKCAP {
 
                         Axis axis = (qstm02Entry).getAxis();
 
-                        // System.out.println("Axis: " + axis);
-
                         VCTMPayload vctmPayload = vctm.get(qstm02Entry.getVctmId());
 
                         float[] qstmTimes = vctmPayload.getFrameList();
@@ -287,8 +277,6 @@ public class TDTMKCAP extends AbstractKCAP {
                             }
                         }
 
-                        //System.out.println(vctmPayload.getTimeScale());
-
                         Collections.sort(times);
 
                         int numEntries = vctmPayload.getNumEntries();
@@ -300,32 +288,30 @@ public class TDTMKCAP extends AbstractKCAP {
                             extra = 1;
                         }
 
-                        for (int k = 0; k < numEntries; k++) {
-                            Byte[][] rawFrameData = vctmPayload.getRawFrameData(k);
-
-                            boolean[] dataEntered = {false, false, false, false};
-
-                            for (int b = 0; b < qstm00Mask.length; b++) {
-                                if (qstm00Used[b]) {
-                                    switch(b) {
-                                        case 0: xValues.put(timestamps[k], qstm00Mask[b]); dataEntered[0] = true; break;
-                                        case 1: yValues.put(timestamps[k], qstm00Mask[b]); dataEntered[1] = true; break;
-                                        case 2: zValues.put(timestamps[k], qstm00Mask[b]); dataEntered[2] = true; break;
-                                        case 3: wValues.put(timestamps[k], qstm00Mask[b]); dataEntered[3] = true; break;
-                                    }
-                                }
-                            }
+                        boolean[] dataEntered = {false, false, false, false};
                             
-                            int start = 0;
+                        int start = 0;
 
-                            switch(axis) {
-                                case Y: start = 1; break;
-                                case Z: start = 2; break;
-                                case W: start = 3; break;
-                                default: break;
+                        switch(axis) {
+                            case Y: start = 1; break;
+                            case Z: start = 2; break;
+                            case W: start = 3; break;
+                            default: break;
+                        }
+
+                        Byte[][] rawFrameData = vctmPayload.getRawFrameData(0);
+
+                        for (int b = 0; b < rawFrameData.length; b++) {
+                            switch(b+start) {
+                                case 0: dataEntered[0] = true; break;
+                                case 1: dataEntered[1] = true; break;
+                                case 2: dataEntered[2] = true; break;
+                                case 3: dataEntered[3] = true; break;
                             }
+                        }
 
-                            // System.out.print(timestamps[k] + ":");
+                        for (int k = 0; k < numEntries; k++) {
+                            rawFrameData = vctmPayload.getRawFrameData(k);
 
                             for (int b = 0; b < rawFrameData.length; b++) {
                                 byte[] valBytes = new byte[numBytes];
@@ -336,22 +322,13 @@ public class TDTMKCAP extends AbstractKCAP {
 
                                 float val = vctmPayload.convertBytesToValue(valBytes);
 
-                                // for (int a = 0; a < valBytes.length; a++) {
-                                //     System.out.print(String.format("0x%02X ", valBytes[a]));
-                                // }
-                                // System.out.print(" =");
-
-                                // System.out.print(" " + val + " ");
-
                                 switch(b+start) {
-                                    case 0: xValues.put(timestamps[k], val); dataEntered[0] = true; break;
-                                    case 1: yValues.put(timestamps[k], val); dataEntered[1] = true; break;
-                                    case 2: zValues.put(timestamps[k], val); dataEntered[2] = true; break;
-                                    case 3: wValues.put(timestamps[k], val); dataEntered[3] = true; break;
+                                    case 0: xValues.put(timestamps[k], val); break;
+                                    case 1: yValues.put(timestamps[k], val); break;
+                                    case 2: zValues.put(timestamps[k], val); break;
+                                    case 3: wValues.put(timestamps[k], val); break;
                                 }
                             }
-
-                            // System.out.println();
                             
                             if (!dataEntered[0]) {
                                 if (qstm00Used[0]) {
