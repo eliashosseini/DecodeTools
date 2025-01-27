@@ -26,6 +26,22 @@ public class QSTM01Entry implements QSTMEntry {
         size = source.readByte();
         mode = source.readByte();
     }
+
+    public int getDestId() {
+        return destId;
+    }
+    
+    public int getSrcId() {
+        return srcId;
+    }
+
+    public int getSizeData() {
+        return size;
+    }
+
+    public int getMode() {
+        return mode;
+    }
     
     @Override
     public QSTMEntryType getType() {

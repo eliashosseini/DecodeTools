@@ -45,6 +45,7 @@ import net.digimonworld.decodetools.gui.util.JProgressFrame;
 import net.digimonworld.decodetools.res.DummyResData;
 import net.digimonworld.decodetools.res.ResPayload;
 import net.digimonworld.decodetools.res.ResPayload.Payload;
+import net.digimonworld.decodetools.res.kcap.HSMPKCAP;
 import net.digimonworld.decodetools.res.payload.BTXPayload;
 
 public class MainWindow extends JFrame implements Observer {
@@ -71,6 +72,7 @@ public class MainWindow extends JFrame implements Observer {
     private final JMenuItem mntmExtractBTX = new JMenuItem("Extract BTX as CSV");
     private final JMenuItem mntmInsertBTX = new JMenuItem("Insert CSVs into BTX");
     private final JMenuItem mntmUnpackARCV = new JMenuItem("New menu item");
+    private final JMenuItem mntmBatchExportGLTF = new JMenuItem("Batch Export to GLTF");
 
     public MainWindow() {
         model.addObserver(this);
@@ -140,6 +142,8 @@ public class MainWindow extends JFrame implements Observer {
         mntmInsertBTX.setAction(new InsertBTXAction());
         mnTools.add(mntmInsertBTX);
 
+        mntmBatchExportGLTF.setAction(new BatchExportGLTFAction());
+        mnTools.add(mntmBatchExportGLTF);
         contentPane = new JPanel();
         contentPane.setBorder(null);
         setContentPane(contentPane);
@@ -333,6 +337,96 @@ public class MainWindow extends JFrame implements Observer {
         }
     }
 
+    class BatchExportGLTFAction extends AbstractAction {
+        private static final long serialVersionUID = 1L;
+
+        public BatchExportGLTFAction() {
+            super("Batch Export to GLTF");
+        }
+
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            JFileChooser inputFileDialogue = new JFileChooser("./");
+            inputFileDialogue.setDialogTitle("Select Directory with Resource Files");
+            inputFileDialogue.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+            inputFileDialogue.showOpenDialog(null);
+
+            JFileChooser outputFileDialogue = new JFileChooser("./");
+            outputFileDialogue.setDialogTitle("Select Directory for Exported GLTF Files");
+            outputFileDialogue.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+            outputFileDialogue.showSaveDialog(null);
+
+            File inputFolder = inputFileDialogue.getSelectedFile();
+            File outputFolder = outputFileDialogue.getSelectedFile();
+
+            if (inputFolder == null || outputFolder == null) {
+                JOptionPane.showMessageDialog(MainWindow.this, "Input or output folder is not selected.");
+                return;
+            }
+
+            MainWindow.this.setEnabled(false);
+            JProgressFrame progressFrame = new JProgressFrame("Exporting Files to GLTF...");
+            progressFrame.setVisible(true);
+
+            SwingWorker<Void, Object> worker = new SwingWorker<>() {
+                private long totalFiles = 0;
+                private int processedFiles = 0;
+                @Override
+                protected Void doInBackground() throws IOException {
+                    
+                    try (Stream<Path> files = Files.walk(inputFolder.toPath()))
+                    {
+                        totalFiles = files.filter(Files::isRegularFile).count();
+                    }
+                    
+                    try (Stream<Path> files = Files.walk(inputFolder.toPath())) {
+                       
+                    
+                        files.filter(Files::isRegularFile).forEach(file -> {
+                            try (Access access = new FileAccess(file.toFile())) {
+                                ResPayload resource = ResPayload.craft(access);
+                                // Navigate to find HSMPKCAP
+                                resource.getElementsWithType(Payload.KCAP).stream()
+                                        .filter(kcap -> kcap instanceof HSMPKCAP)
+                                        .map(kcap -> (HSMPKCAP) kcap)
+                                        .forEach(hsmp -> {
+                                            try {
+                                                GLTFExporter exporter = new GLTFExporter(hsmp);
+                                                exporter.export(outputFolder);
+                                                Main.LOGGER.info(() -> "Exported: " + file);
+                                            } catch (Exception ex) {
+                                                Main.LOGGER.log(Level.SEVERE, "Error exporting: " + file, ex);
+                                            }
+                                        });
+                            } catch (Exception ex) {
+                                Main.LOGGER.log(Level.SEVERE, "Error reading file: " + file, ex);
+                            }
+                            
+                            processedFiles++;
+                            int progress = (int) ((processedFiles / (double) totalFiles) * 100);
+                            setProgress(progress); // Notify progress listeners
+                            
+                        });
+                    } 
+                    catch (IOException ex) {
+                        Main.LOGGER.log(Level.SEVERE, "Error walking input directory.", ex);
+                    }
+                    return null;
+                }
+
+                @Override
+                protected void done() {
+                    MainWindow.this.setEnabled(true);
+                    progressFrame.dispose();
+                    JOptionPane.showMessageDialog(MainWindow.this, "Batch Export Completed!");
+                }
+            };
+
+            worker.addPropertyChangeListener(progressFrame.getProgressListener());
+            worker.execute();
+        }
+    }
+    
     class LoadAction extends AbstractAction {
         private static final long serialVersionUID = 423960702402170030L;
 

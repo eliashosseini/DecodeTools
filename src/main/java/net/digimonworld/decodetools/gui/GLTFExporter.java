@@ -49,15 +49,22 @@ import de.javagl.jgltf.impl.v2.Texture;
 import de.javagl.jgltf.impl.v2.TextureInfo;
 import de.javagl.jgltf.model.io.GltfWriter;
 import net.digimonworld.decodetools.core.Vector4;
+import net.digimonworld.decodetools.res.ResPayload;
+import net.digimonworld.decodetools.res.ResPayload.Payload;
 import net.digimonworld.decodetools.res.kcap.HSMPKCAP;
+import net.digimonworld.decodetools.res.kcap.TDTMKCAP;
+import net.digimonworld.decodetools.res.kcap.AbstractKCAP.KCAPType;
+import net.digimonworld.decodetools.res.kcap.AbstractKCAP;
 import net.digimonworld.decodetools.res.payload.GMIOPayload;
 import net.digimonworld.decodetools.res.payload.GMIOPayload.TextureFiltering;
 import net.digimonworld.decodetools.res.payload.GMIOPayload.TextureWrap;
 import net.digimonworld.decodetools.res.payload.HSEMPayload;
+import net.digimonworld.decodetools.res.payload.LRTMPayload;
 import net.digimonworld.decodetools.res.payload.RTCLPayload;
 import net.digimonworld.decodetools.res.payload.TNOJPayload;
 import net.digimonworld.decodetools.res.payload.XDIOPayload;
 import net.digimonworld.decodetools.res.payload.XTVOPayload;
+import net.digimonworld.decodetools.res.payload.hsem.HSEM07Entry;
 import net.digimonworld.decodetools.res.payload.hsem.HSEMDrawEntry;
 import net.digimonworld.decodetools.res.payload.hsem.HSEMEntry;
 import net.digimonworld.decodetools.res.payload.hsem.HSEMJointEntry;
@@ -68,20 +75,63 @@ import net.digimonworld.decodetools.res.payload.xtvo.XTVORegisterType;
 import net.digimonworld.decodetools.res.payload.xtvo.XTVOVertex;
 
 public class GLTFExporter {
-    private static final String BUFFER_URI = "data:application/octet-stream;base64,";
+    public static final String BUFFER_URI = "data:application/octet-stream;base64,";
 
     private final HSMPKCAP hsmp;
     private final GlTF instance;
+
+    private List<TDTMKCAP> tdtms;
 
     private Map<Short, Short> jointAssignment = new HashMap<>();
     private Map<Short, Short> textureAssignment = new HashMap<>();
     private HSEMMaterialEntry activeMaterial = null;
 
+    private List<Material> materials;
+
+    private int entry07Mask = 0;
+    private int entry07Opacity = 0;
     private int geomId = 0;
     private Node rootNode = new Node();
 
     public GLTFExporter(HSMPKCAP hsmp) {
         this.hsmp = hsmp;
+
+        List<ResPayload> otherPayloads = hsmp.getParent().getEntries();
+        tdtms = new ArrayList<>();
+
+        boolean hsmpflag1 = false; // matching hsmp found
+        boolean hsmpflag2 = false; // hsmp found after tdtms
+
+        // Get all TDTM KCAPs following HSMP until it hits another HSMP
+        for (int i = 0; i < otherPayloads.size(); i++) {
+            if (hsmpflag1 && !hsmpflag2) {
+                if (otherPayloads.get(i).getType() == Payload.KCAP) {
+                    if (((AbstractKCAP)otherPayloads.get(i)).getKCAPType() == KCAPType.TDTM) {
+                        TDTMKCAP tdtm = (TDTMKCAP)otherPayloads.get(i);
+                        tdtms.add(tdtm);
+                    }
+                }
+                else {
+                    tdtms.add(null);
+                }
+            }
+            if (otherPayloads.get(i).getType() == Payload.KCAP) {
+                if (!hsmpflag1) {
+                    if (((AbstractKCAP)otherPayloads.get(i)).getKCAPType() == KCAPType.HSMP) {
+                        HSMPKCAP hsmp2 = (HSMPKCAP)otherPayloads.get(i);
+                        if (hsmp == hsmp2) {
+                            hsmpflag1 = true;
+                        }
+                    }
+                }
+                else {
+                    if (((AbstractKCAP)otherPayloads.get(i)).getKCAPType() == KCAPType.HSMP) {
+                        hsmpflag2 = true;
+                    }
+                }
+            }
+        }
+
         this.instance = new GlTF();
 
         initialize();
@@ -100,10 +150,12 @@ public class GLTFExporter {
 
     private void initialize() {
         createAssetTag();
+        createMaterials();
         createTextures();
         createJoints();
         createLocations();
         createGeometry();
+        createAnimations();
 
         Scene scene = new Scene();
         rootNode.setName(hsmp.getName());
@@ -121,6 +173,34 @@ public class GLTFExporter {
         inputAsset.setVersion("2.0");
         inputAsset.setGenerator("jgltf-parent-2.0.3");
         instance.setAsset(inputAsset);
+    }
+
+    private void createMaterials() {
+        materials = new ArrayList<Material>();
+
+        for (ResPayload payload : hsmp.getLRTM().getEntries()) {
+            LRTMPayload lrtm = (LRTMPayload)payload;
+
+            // int[] lrtmEmission = lrtm.getEmission();
+
+            // float[] emissive = new float[3];
+
+            // for (int i = 0; i < 3; i++) {
+            //     emissive[i] = ((float)lrtmEmission[i])/(float)255;
+            // }
+
+            Material material = new Material();
+            material.setDoubleSided(true);
+            material.setName("material_" + lrtm.getIndex());
+            material.setAlphaMode("OPAQUE");
+
+            MaterialPbrMetallicRoughness pbrMetallicRoughness = new MaterialPbrMetallicRoughness();
+            //material.setEmissiveFactor(emissive);
+            material.setPbrMetallicRoughness(pbrMetallicRoughness);
+
+            instance.addMaterials(material);
+
+        }
     }
 
     private void createTextures() {
@@ -161,22 +241,6 @@ public class GLTFExporter {
             texture.setName(imageName + "_texture");
             texture.setSource(instance.getImages().size() - 1); // Set the image index
             instance.addTextures(texture);
-
-            // Create Material and link it to the Texture
-            // TODO use actual material data from LRTM section
-            Material material = new Material();
-            material.setDoubleSided(false);
-            material.setName(imageName + "_material");
-            if (gmio.getFormat().hasAlpha())
-                material.setAlphaMode("BLEND");
-
-            MaterialPbrMetallicRoughness pbrMetallicRoughness = new MaterialPbrMetallicRoughness();
-            TextureInfo baseColorTextureInfo = new TextureInfo();
-            baseColorTextureInfo.setIndex(instance.getTextures().indexOf(texture)); // Set the texture index
-            pbrMetallicRoughness.setBaseColorTexture(baseColorTextureInfo);
-            material.setPbrMetallicRoughness(pbrMetallicRoughness);
-
-            instance.addMaterials(material);
         }
     }
 
@@ -190,7 +254,7 @@ public class GLTFExporter {
 
         for (int i = 0; i < hsmp.getTNOJ().getEntryCount(); i++) {
             TNOJPayload j = hsmp.getTNOJ().get(i);
-
+            
             float[] rotation = new float[] { j.getRotationX(), j.getRotationY(), j.getRotationZ(), j.getRotationW() };
             float[] scale = new float[] { j.getLocalScaleX(), j.getLocalScaleY(), j.getLocalScaleZ() };
             float[] translation = new float[] { j.getXOffset(), j.getYOffset(), j.getZOffset() };
@@ -202,6 +266,8 @@ public class GLTFExporter {
             node.setTranslation(translation);
             instance.addNodes(node);
             jointsSkin.addJoints(instance.getNodes().size() - 1);
+
+            //System.out.println("Joint " + i + " = " + j.getName());
 
             matrixList.add(j.getOffsetMatrix());
 
@@ -251,6 +317,7 @@ public class GLTFExporter {
 
     private void createGeometry() {
         for (HSEMPayload hsem : hsmp.getHSEM().getHSEMEntries()) {
+            
             Map<String, String> extra = new HashMap<>();
             extra.put("id", Integer.toString(hsem.getId()));
             extra.put("unk1", Integer.toString(hsem.getUnknown1()));
@@ -263,6 +330,16 @@ public class GLTFExporter {
             for (HSEMEntry entry : hsem.getEntries())
                 processHSEM(entry, extra);
 
+        }
+    }
+
+    // Generate animations
+    private void createAnimations() {
+        for(int i = 0; i < tdtms.size(); i++) {
+            TDTMKCAP tdtm = tdtms.get(i);
+            if (tdtm != null) {
+                tdtm.exportGLTFAnimation(instance, i);
+            }
         }
     }
 
@@ -346,9 +423,43 @@ public class GLTFExporter {
         }
 
         // TODO deal with materials proper, support multiple textures and LRTM
-        if (textureAssignment.getOrDefault((short) 0, (short) -1) != -1)
-            primitive.setMaterial(textureAssignment.get((short) 0).intValue());
+        if (textureAssignment.getOrDefault((short) 0, (short) -1) != -1) {
+            int matIndex = activeMaterial.getMaterialId();
+            Material mat = instance.getMaterials().get(matIndex);
 
+            int texIndex = textureAssignment.get((short) 0).intValue();
+            TextureInfo baseColorTextureInfo = new TextureInfo();
+            baseColorTextureInfo.setIndex(texIndex);
+
+            mat.getPbrMetallicRoughness().setBaseColorTexture(baseColorTextureInfo);
+             
+            if (entry07Opacity > 0) {
+                Material newMat = new Material();
+                newMat.setDoubleSided(true);
+                newMat.setName(mat.getName() + "_blend");
+                newMat.setAlphaMode("BLEND");
+                MaterialPbrMetallicRoughness pbrMetallicRoughness = mat.getPbrMetallicRoughness();
+                newMat.setPbrMetallicRoughness(pbrMetallicRoughness);
+                instance.addMaterials(newMat);
+                primitive.setMaterial(instance.getMaterials().size() - 1);
+            }
+            else if (entry07Mask > 0)
+            {
+                Material newMat = new Material();
+                newMat.setDoubleSided(true);
+                newMat.setName(mat.getName() + "_mask");
+                newMat.setAlphaMode("MASK");
+                newMat.setAlphaCutoff(0.2f);
+                MaterialPbrMetallicRoughness pbrMetallicRoughness = mat.getPbrMetallicRoughness();
+                newMat.setPbrMetallicRoughness(pbrMetallicRoughness);
+                instance.addMaterials(newMat);
+                primitive.setMaterial(instance.getMaterials().size() - 1);
+            }
+            else {
+                primitive.setMaterial(matIndex);
+            }
+        }
+        
         Mesh mesh = new Mesh();
         mesh.setExtras(extra);
         mesh.addPrimitives(primitive);
@@ -368,7 +479,12 @@ public class GLTFExporter {
         switch (entry.getHSEMType()) {
             // unknown/unhandled
             case UNK03:
+                break;
             case UNK07:
+                
+                entry07Mask = ((HSEM07Entry)entry).getMask();
+                entry07Opacity = ((HSEM07Entry)entry).getTransparency();
+
                 break;
 
             case JOINT:
@@ -380,7 +496,7 @@ public class GLTFExporter {
                 break;
 
             case MATERIAL:
-                activeMaterial = ((HSEMMaterialEntry) entry);
+                activeMaterial = (HSEMMaterialEntry) entry;                
                 break;
 
             case DRAW:

@@ -5,21 +5,32 @@ import net.digimonworld.decodetools.core.Access;
 public class HSEM07Entry implements HSEMEntry {
     private short unkn1; // culling mode?
     private short unkn2;
-    private short unkn3; // transparency mode?
+    private byte unkn3_1; // transparency mode?
+    private byte unkn3_2; // transparency mode?
     private short unkn4;
     
     public HSEM07Entry(Access source) {
         unkn1 = source.readShort();
         unkn2 = source.readShort();
-        unkn3 = source.readShort();
+        unkn3_1 = source.readByte();
+        unkn3_2 = source.readByte();
         unkn4 = source.readShort();
     }
     
-    public HSEM07Entry(short b, short c, short d, short e) {
+    public HSEM07Entry(short b, short c, byte d, byte e,short f) {
         this.unkn1 = b;
         this.unkn2 = c;
-        this.unkn3 = d;
-        this.unkn4 = e;
+        this.unkn3_1 = d;
+        this.unkn3_2 = e;
+        this.unkn4 = f;
+    }
+
+    public int getTransparency() {
+        return unkn3_1;
+    }
+    
+    public int getMask() {
+        return unkn3_2;
     }
 
     @Override
@@ -29,7 +40,8 @@ public class HSEM07Entry implements HSEMEntry {
         
         dest.writeShort(unkn1);
         dest.writeShort(unkn2);
-        dest.writeShort(unkn3);
+        dest.writeByte(unkn3_1);
+        dest.writeByte(unkn3_2);
         dest.writeShort(unkn4);
     }
     
@@ -46,6 +58,6 @@ public class HSEM07Entry implements HSEMEntry {
 
     @Override
     public String toString() {
-        return String.format("Entry07 | U1: %s | U2: %s | U3: %s | U4: %s", unkn1, unkn2, unkn3, unkn4);
+        return String.format("Entry07 | U1: %s | U2: %s | U3: %s | U4: %s", unkn1, unkn2, unkn3_1,unkn3_2, unkn4);
     }
 }
