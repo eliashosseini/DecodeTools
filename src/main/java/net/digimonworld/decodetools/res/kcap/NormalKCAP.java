@@ -59,7 +59,7 @@ public class NormalKCAP extends AbstractKCAP {
     
     @Override
     public List<ResPayload> getEntries() {
-        return Collections.unmodifiableList(entries);
+        return entries;
     }
     
     @Override

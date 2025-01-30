@@ -657,7 +657,7 @@ public class ModelImporter extends PayloadPanel {
         for (int i = 0; i < scene.mNumAnimations(); i++) {
             AIAnimation animation = AIAnimation.create(scene.mAnimations().get(i));
 
-            System.out.println(animation.mName().dataString());
+            //System.out.println(animation.mName().dataString());
 
             int index;
 
@@ -682,20 +682,21 @@ public class ModelImporter extends PayloadPanel {
             if (index > -1 && index < 14) {
                 TDTMKCAP newTDTM = new TDTMKCAP(rootKCAP.getParent(), animation);
 
-                tdtmKCAPs.set(index, newTDTM);
+                if (index < tdtmKCAPs.size()) {
+                    tdtmKCAPs.set(index, newTDTM);
+                }
             }
         }
 
-        // Need to figure out how to write entries to parent KCAP
+        for (int i = 0; i < tdtmKCAPs.size(); i++) {
+            System.out.println(tdtmKCAPs.get(i));
+        }
 
         List<ResPayload> parentPayloads = parentKCAP.getEntries();
 
-        for (int i = 0; i < parentPayloads.size(); i++) {
-            if (parentPayloads.get(i).getType() == Payload.KCAP) {
-                if (((AbstractKCAP)parentPayloads.get(i)).getKCAPType() == KCAPType.TDTM) {
-                    parentPayloads.set(i, tdtmKCAPs.get(i));
-                }
-            }
+        for (int i = 1; i < 15; i++) {
+            if (tdtmKCAPs.get(i-1) != null)
+                parentPayloads.set(i, tdtmKCAPs.get(i-1));
         }
     }
 
@@ -933,15 +934,16 @@ public class ModelImporter extends PayloadPanel {
 
         List<ResPayload> otherPayloads = rootKCAP.getParent().getEntries();
 
-        for (int i = 0; i < otherPayloads.size(); i++) {
-            if (otherPayloads.get(i).getType() == Payload.KCAP) {
-                if (((AbstractKCAP)otherPayloads.get(i)).getKCAPType() == KCAPType.TDTM) {
-                    TDTMKCAP tdtm = (TDTMKCAP)otherPayloads.get(i);
-                    tdtmKCAPs.add(tdtm);
+        for (int i = 1; i < 15; i++) {
+            tdtmKCAPs.add(null);
+
+            if (otherPayloads.get(i) != null) {
+                if (otherPayloads.get(i).getType() == Payload.KCAP) {
+                    if (((AbstractKCAP)otherPayloads.get(i)).getKCAPType() == KCAPType.TDTM) {
+                        TDTMKCAP tdtm = (TDTMKCAP)otherPayloads.get(i);
+                        tdtmKCAPs.set(i-1, tdtm);
+                    }
                 }
-            }
-            else {
-                tdtmKCAPs.add(null);
             }
         }
     }

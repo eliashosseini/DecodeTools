@@ -134,7 +134,7 @@ public class TDTMKCAP extends AbstractKCAP {
             List<AIVectorKey> scaData = new ArrayList<AIVectorKey>();
 
             String nodeName = nodeAnim.mNodeName().dataString();
-            System.out.println(nodeName);
+            //System.out.println(nodeName);
 
             short jointId = (short)i;
             
@@ -143,7 +143,7 @@ public class TDTMKCAP extends AbstractKCAP {
             for (int j = 0; j < nodeAnim.mNumPositionKeys(); j++) {
                 AIVectorKey key = positionKeys.get(j);
                 posData.add(key);
-                System.out.println("Time: " + key.mTime() + ", Position: " + key.mValue().x() + ", " + key.mValue().y() + ", " + key.mValue().z());
+                //System.out.println("Time: " + key.mTime() + ", Position: " + key.mValue().x() + ", " + key.mValue().y() + ", " + key.mValue().z());
             }
 
             QSTMPayload positionQSTM = null;
@@ -173,7 +173,7 @@ public class TDTMKCAP extends AbstractKCAP {
             for (int j = 0; j < nodeAnim.mNumRotationKeys(); j++) {
                 AIQuatKey key = rotationKeys.get(j);
                 rotData.add(key);
-                System.out.println("Time: " + key.mTime() + ", Rotation: " + key.mValue().x() + ", " + key.mValue().y() + ", " + key.mValue().z() + ", " + key.mValue().w());
+                //System.out.println("Time: " + key.mTime() + ", Rotation: " + key.mValue().x() + ", " + key.mValue().y() + ", " + key.mValue().z() + ", " + key.mValue().w());
             }
 
             QSTMPayload rotationQSTM = null;
@@ -195,7 +195,7 @@ public class TDTMKCAP extends AbstractKCAP {
             for (int j = 0; j < nodeAnim.mNumScalingKeys(); j++) {
                 AIVectorKey key = scalingKeys.get(j);
                 scaData.add(key);
-                System.out.println("Time: " + key.mTime() + ", Scale: " + key.mValue().x() + ", " + key.mValue().y() + ", " + key.mValue().z());
+                //System.out.println("Time: " + key.mTime() + ", Scale: " + key.mValue().x() + ", " + key.mValue().y() + ", " + key.mValue().z());
             }
 
             QSTMPayload scaleQSTM = null;
@@ -249,7 +249,7 @@ public class TDTMKCAP extends AbstractKCAP {
 
         // System.out.println("Animation: " + name);
 
-        float animDuration = (time2-time1)/333;
+        float animDuration = (time2-time1)*333;
 
         // Each TDTM Entry can only map one joint, contains translation OR rotation OR scale
         for (int i = 0; i < tdtmEntry.size(); i++) {
