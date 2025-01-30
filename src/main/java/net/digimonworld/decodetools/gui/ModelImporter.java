@@ -79,6 +79,7 @@ import net.digimonworld.decodetools.res.kcap.XTVPKCAP;
 import net.digimonworld.decodetools.res.kcap.TDTMKCAP;
 import net.digimonworld.decodetools.res.kcap.AbstractKCAP.KCAPType;
 import net.digimonworld.decodetools.res.kcap.AbstractKCAP;
+import net.digimonworld.decodetools.res.kcap.NormalKCAP;
 import net.digimonworld.decodetools.res.payload.HSEMPayload;
 import net.digimonworld.decodetools.res.payload.TNOJPayload;
 import net.digimonworld.decodetools.res.payload.XDIOPayload;
@@ -646,11 +647,17 @@ public class ModelImporter extends PayloadPanel {
         rootKCAP.setXTVP(new XTVPKCAP(rootKCAP, xtvoPayload));
         if (!tnoj.isEmpty())
             rootKCAP.setTNOJ(new TNOJKCAP(rootKCAP, tnoj));
+        
+        loadAnimations();
     }
 
     public void loadAnimations() {
+        NormalKCAP parentKCAP = (NormalKCAP)(rootKCAP.getParent());
+
         for (int i = 0; i < scene.mNumAnimations(); i++) {
             AIAnimation animation = AIAnimation.create(scene.mAnimations().get(i));
+
+            System.out.println(animation.mName().dataString());
 
             int index;
 
@@ -676,6 +683,18 @@ public class ModelImporter extends PayloadPanel {
                 TDTMKCAP newTDTM = new TDTMKCAP(rootKCAP.getParent(), animation);
 
                 tdtmKCAPs.set(index, newTDTM);
+            }
+        }
+
+        // Need to figure out how to write entries to parent KCAP
+
+        List<ResPayload> parentPayloads = parentKCAP.getEntries();
+
+        for (int i = 0; i < parentPayloads.size(); i++) {
+            if (parentPayloads.get(i).getType() == Payload.KCAP) {
+                if (((AbstractKCAP)parentPayloads.get(i)).getKCAPType() == KCAPType.TDTM) {
+                    parentPayloads.set(i, tdtmKCAPs.get(i));
+                }
             }
         }
     }
