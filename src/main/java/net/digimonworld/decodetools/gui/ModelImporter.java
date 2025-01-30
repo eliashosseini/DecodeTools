@@ -6,15 +6,21 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.FloatBuffer;
+import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
@@ -32,30 +38,47 @@ import javax.swing.JScrollPane;
 import javax.swing.LayoutStyle.ComponentPlacement;
 import javax.swing.ListSelectionModel;
 
-import org.lwjgl.PointerBuffer;
+import org.joml.AxisAngle4f;
+import org.joml.Matrix4f;
+import org.joml.Matrix4fc;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
+import org.lwjgl.assimp.AIAnimation;
 import org.lwjgl.assimp.AIBone;
 import org.lwjgl.assimp.AIColor4D;
 import org.lwjgl.assimp.AIFace;
 import org.lwjgl.assimp.AIMatrix4x4;
 import org.lwjgl.assimp.AIMesh;
+
 import org.lwjgl.assimp.AINode;
 import org.lwjgl.assimp.AIPropertyStore;
 import org.lwjgl.assimp.AIQuaternion;
 import org.lwjgl.assimp.AIScene;
+
 import org.lwjgl.assimp.AIVector3D;
 import org.lwjgl.assimp.AIVertexWeight;
 import org.lwjgl.assimp.Assimp;
 
+import de.javagl.jgltf.model.GltfModel;
+
+import de.javagl.jgltf.model.io.GltfModelReader;
 import net.digimonworld.decodetools.Main;
 import net.digimonworld.decodetools.core.Utils;
+//import net.digimonworld.decodetools.gui.HSEMData.HSEM07Data;
+//import net.digimonworld.decodetools.gui.HSEMData.MeshInfo;
+//import net.digimonworld.decodetools.gui.HSEMData.UnkData;
 import net.digimonworld.decodetools.gui.util.FunctionAction;
 import net.digimonworld.decodetools.gui.util.LinAlg.Vector3;
 import net.digimonworld.decodetools.res.ResPayload;
+import net.digimonworld.decodetools.res.ResPayload.Payload;
 import net.digimonworld.decodetools.res.kcap.HSEMKCAP;
 import net.digimonworld.decodetools.res.kcap.HSMPKCAP;
 import net.digimonworld.decodetools.res.kcap.TNOJKCAP;
 import net.digimonworld.decodetools.res.kcap.XDIPKCAP;
 import net.digimonworld.decodetools.res.kcap.XTVPKCAP;
+import net.digimonworld.decodetools.res.kcap.TDTMKCAP;
+import net.digimonworld.decodetools.res.kcap.AbstractKCAP.KCAPType;
+import net.digimonworld.decodetools.res.kcap.AbstractKCAP;
 import net.digimonworld.decodetools.res.payload.HSEMPayload;
 import net.digimonworld.decodetools.res.payload.TNOJPayload;
 import net.digimonworld.decodetools.res.payload.XDIOPayload;
@@ -72,6 +95,9 @@ import net.digimonworld.decodetools.res.payload.xtvo.XTVORegisterType;
 import net.digimonworld.decodetools.res.payload.xtvo.XTVOValueType;
 import net.digimonworld.decodetools.res.payload.xtvo.XTVOVertex;
 
+import java.io.FileInputStream;
+import java.io.InputStream;
+
 import javax.swing.JSpinner;
 import javax.swing.SpinnerNumberModel;
 import javax.xml.parsers.ParserConfigurationException;
@@ -84,21 +110,23 @@ public class ModelImporter extends PayloadPanel {
                                                      0.0f, 0.0f, 0.0f, 0.0f, 1.0f };
     private static final String[] JOINT_PREFIXES = { "J_", "AT_", };
 
-    private static final int IMPORT_FLAGS = Assimp.aiProcess_SplitByBoneCount | Assimp.aiProcess_LimitBoneWeights;
+    private static final int IMPORT_FLAGS = Assimp.aiProcess_Triangulate | Assimp.aiProcess_LimitBoneWeights
+                                            | Assimp.aiProcess_SplitByBoneCount | Assimp.aiProcess_JoinIdenticalVertices
+                                            | Assimp.aiProcess_OptimizeMeshes;
+
     private static final AIPropertyStore importProperties = Assimp.aiCreatePropertyStore();
     static {
         Assimp.aiSetImportPropertyInteger(importProperties, Assimp.AI_CONFIG_PP_SBBC_MAX_BONES, 16);
         Assimp.aiSetImportPropertyInteger(importProperties, Assimp.AI_CONFIG_PP_LBW_MAX_WEIGHTS, 4);
-        Assimp.aiSetImportPropertyInteger(importProperties, Assimp.AI_CONFIG_IMPORT_COLLADA_USE_COLLADA_NAMES, 1);
     }
 
     private HSMPKCAP rootKCAP;
+    List<TDTMKCAP> tdtmKCAPs;
     private AIScene scene;
+    //private HSEMData hsemData;
 
     // persistent, loaded or via GUI
     private List<AINode> jointNodes = new ArrayList<>();
-    private Map<String, float[]> jointBones = new HashMap<>();
-    private float[] hsemHeaderArray = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
 
     // Swing garbage
     private final JLabel lblInput = new JLabel("Input:");
@@ -122,6 +150,7 @@ public class ModelImporter extends PayloadPanel {
     // generated
 
     public ModelImporter(HSMPKCAP rootKCAP) {
+
         btnNewButton.addActionListener(a -> {
             if (this.rootKCAP == null)
                 return;
@@ -232,6 +261,7 @@ public class ModelImporter extends PayloadPanel {
                 if (fileDialogue.getSelectedFile() == null)
                     return;
 
+                loadGLTFModel(fileDialogue.getSelectedFile().getPath());
                 scene = Assimp.aiImportFileExWithProperties(fileDialogue.getSelectedFile().getPath(), IMPORT_FLAGS,
                                                             null, importProperties);
 
@@ -260,48 +290,6 @@ public class ModelImporter extends PayloadPanel {
                 }
                 float scale = calculateModelScale();
                 spinner.setValue(scale);
-                org.lwjgl.PointerBuffer scene_meshes = scene.mMeshes();
-                for (int i = 0; i < scene.mNumMeshes(); ++i) {
-                    AIMesh mesh = AIMesh.create(scene_meshes.get(i));
-                    for (int j = 0; j < mesh.mNumBones(); ++j) {
-                        AIBone bone = AIBone.create(mesh.mBones().get(j));
-                        AIMatrix4x4 offsetMatrix = bone.mOffsetMatrix();
-
-                        // Here we're going to bake a scale into the inverse bind pose
-                        // Since we need to apply the scale the the translations only in the bind pose,
-                        // and the translations are mixed up with the rotations in the inverse bind pose,
-                        // AND because location-rotation matrices have very simple inverses...
-                        // We're going to un-invert the translation part of the inverse bind pose,
-                        // apply the scale,
-                        // and then re-invert
-                        // We'll ignore the rotation to save flops, since our baked-in scale won't affect the rotation
-
-                        // Set up the variables we're going to need
-                        Vector3 t = new Vector3(offsetMatrix.a4(), offsetMatrix.b4(), offsetMatrix.c4());
-                        Vector3 u = new Vector3(offsetMatrix.a1(), offsetMatrix.b1(), offsetMatrix.c1());
-                        Vector3 v = new Vector3(offsetMatrix.a2(), offsetMatrix.b2(), offsetMatrix.c2());
-                        Vector3 w = new Vector3(offsetMatrix.a3(), offsetMatrix.b3(), offsetMatrix.c3());
-
-                        // Retrieve the translation from the bind pose, and apply the scale
-                        Vector3 s = new Vector3(-u.dot(t) * scale, -v.dot(t) * scale, -w.dot(t) * scale);
-
-                        // Re-invert
-                        Vector3 x = new Vector3(offsetMatrix.a1(), offsetMatrix.a2(), offsetMatrix.a3());
-                        Vector3 y = new Vector3(offsetMatrix.b1(), offsetMatrix.b2(), offsetMatrix.b3());
-                        Vector3 z = new Vector3(offsetMatrix.c1(), offsetMatrix.c2(), offsetMatrix.c3());
-                        float t_x = -x.dot(s);
-                        float t_y = -y.dot(s);
-                        float t_z = -z.dot(s);
-
-                        // Save the matrix for later
-                        float[] ibpm = { offsetMatrix.a1(), offsetMatrix.a2(), offsetMatrix.a3(), t_x,
-                                         offsetMatrix.b1(), offsetMatrix.b2(), offsetMatrix.b3(), t_y,
-                                         offsetMatrix.c1(), offsetMatrix.c2(), offsetMatrix.c3(), t_z,
-                                         offsetMatrix.d1(), offsetMatrix.d2(), offsetMatrix.d3(), offsetMatrix.d4() };
-
-                        jointBones.put(bone.mName().dataString(), ibpm);
-                    }
-                }
 
                 lblnone.setText(fileDialogue.getSelectedFile().getPath());
 
@@ -444,34 +432,99 @@ public class ModelImporter extends PayloadPanel {
         new GLTFExporter(rootKCAP).export(output);
     }
 
+    public int countUniqueHSEMIds(Map<Integer, Short> hsemPairs) {
+        Set<Short> uniqueIds = new HashSet<>();
+        for (Short hsemId : hsemPairs.values()) {
+            uniqueIds.add(hsemId);
+        }
+        return uniqueIds.size();
+    }
+
+    private void addMaterialEntry(List<HSEMEntry> entries, int materialId) {
+
+        entries.add(new HSEMMaterialEntry((short) 0, (short) materialId));
+    }
+    
+    public GltfModel loadGLTFModel(String filePath) {
+        GltfModelReader reader = new GltfModelReader();
+        try {
+            return reader.read(Paths.get(filePath));
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private Map<Short, Short> processBoneMappingAndWeights(AIMesh mesh,
+                                                           List<SortedMap<XTVOAttribute, List<Number>>> vertices,
+                                                           XTVOAttribute idxAttrib, XTVOAttribute wgtAttrib,
+                                                           List<TNOJPayload> tnoj) {
+        Map<Short, Short> boneMapping = new HashMap<>();
+
+        if (mesh.mNumBones() != 0) {
+            for (short j = 0; j < mesh.mNumBones(); j++) {
+                AIBone bone = AIBone.create(mesh.mBones().get(j));
+                AIVertexWeight.Buffer weights = bone.mWeights();
+
+                short id = 0;
+                for (; id < tnoj.size(); id++)
+                    if (tnoj.get(id).getName().equals(bone.mName().dataString()))
+                        break;
+
+                boneMapping.put(j, id);
+
+                if (weights != null) {
+                    for (int k = 0; k < bone.mNumWeights(); k++) {
+                        AIVertexWeight weight = weights.get(k);
+                        int vertexId = weight.mVertexId();
+                        float val = weight.mWeight() * 255;
+
+                        vertices.get(vertexId).computeIfAbsent(idxAttrib, a -> new ArrayList<Number>()).add(j * 3);
+                        vertices.get(vertexId).computeIfAbsent(wgtAttrib, a -> new ArrayList<Number>()).add(val);
+                    }
+                }
+            }
+            vertices.forEach(a -> {
+                a.putIfAbsent(wgtAttrib, new ArrayList<>());
+                a.putIfAbsent(idxAttrib, new ArrayList<>());
+                Utils.padList(a.get(wgtAttrib), wgtAttrib.getCount(), 0);
+                Utils.padList(a.get(idxAttrib), idxAttrib.getCount(), 0);
+            });
+        }
+        return boneMapping;
+    }
+
     @SuppressWarnings("resource")
     public void loadModel() {
         List<XDIOPayload> xdioPayload = new ArrayList<>();
         List<XTVOPayload> xtvoPayload = new ArrayList<>();
+        List<TNOJPayload> tnoj = loadJoints((float) spinner.getValue(), scene);
         List<HSEMEntry> hsemPayload = new ArrayList<>();
-        List<TNOJPayload> tnoj = loadJoints((float) spinner.getValue());
-
+                  
+        Map<Short, Short> previousBoneMapping = new HashMap<>(); 
+        
         int materialId = -1;
-        // TODO add option to add new GMIO
-        for (short i = 0; i < scene.mNumMeshes(); i++) {
-            AIMesh mesh = AIMesh.create(scene.mMeshes().get(i));
+        
+        for (int i = 0; i < scene.mNumMeshes(); i++) {
 
-            if (mesh.mMaterialIndex() != materialId) {
-                hsemPayload.add(new HSEMMaterialEntry((short) 0, (short) mesh.mMaterialIndex()));
-                HashMap<Short, Short> map = new HashMap<>();
+           AIMesh mesh = AIMesh.create(scene.mMeshes().get(i));
 
-                map.put((short) 0, (short) mesh.mMaterialIndex());
-                map.put((short) 2, (short) (scene.mNumMaterials() - 1));
-                hsemPayload.add(new HSEMTextureEntry(map));
-                materialId = mesh.mMaterialIndex();
-            }
+           if (mesh.mMaterialIndex() != materialId) {
+               hsemPayload.add(new HSEMMaterialEntry((short) 0, (short) mesh.mMaterialIndex()));
+               HashMap<Short, Short> map = new HashMap<>();
 
+               map.put((short) 0, (short) mesh.mMaterialIndex());
+               map.put((short) 2, (short) (scene.mNumMaterials() - 1));
+               hsemPayload.add(new HSEMTextureEntry(map));
+               materialId = mesh.mMaterialIndex();
+           }
+       
             AIVector3D.Buffer mVertices = mesh.mVertices();
             AIVector3D.Buffer mNormals = mesh.mNormals();
             AIVector3D.Buffer tex0Buff = mesh.mTextureCoords(0);
             AIVector3D.Buffer tex1Buff = mesh.mTextureCoords(1);
             AIColor4D.Buffer mColor = mesh.mColors(0);
-            PointerBuffer mBones = mesh.mBones();
             AIFace.Buffer mFaces = mesh.mFaces();
 
             float biggest = 0;
@@ -492,22 +545,25 @@ public class ModelImporter extends PayloadPanel {
             XTVOAttribute normalAttrib = new XTVOAttribute(XTVORegisterType.NORMAL, offsetCounter, (byte) 3,
                                                            XTVOValueType.BYTE, 1.0f / 127f);
             offsetCounter += mNormals != null ? 3 : 0;
+
             XTVOAttribute colorAttrib = new XTVOAttribute(XTVORegisterType.COLOR, offsetCounter, (byte) 4,
                                                           XTVOValueType.UBYTE, 1.0f / 255f);
             offsetCounter += mColor != null ? 4 : 0;
+
             XTVOAttribute idxAttrib = new XTVOAttribute(XTVORegisterType.IDX, offsetCounter, (byte) 4,
                                                         XTVOValueType.UBYTE, 1.0f / 255f);
+
             offsetCounter += mesh.mNumBones() != 0 ? 4 : 0;
             XTVOAttribute wgtAttrib = new XTVOAttribute(XTVORegisterType.WEIGHT, offsetCounter, (byte) 4,
                                                         XTVOValueType.UBYTE, 1.0f / 255f);
             offsetCounter += mesh.mNumBones() != 0 ? 4 : 0;
 
-            offsetCounter = (short) (offsetCounter + offsetCounter % 2);
             XTVOAttribute tex0Attrib = new XTVOAttribute(XTVORegisterType.TEXTURE0, offsetCounter, (byte) 2,
-                                                         XTVOValueType.SHORT, 1.0f / 32767f);
-            offsetCounter += tex0Buff != null ? 4 : 0;
+                                                         XTVOValueType.FLOAT, 1.0f);
+            offsetCounter += tex0Buff != null ? 8 : 0;
+
             XTVOAttribute tex1Attrib = new XTVOAttribute(XTVORegisterType.TEXTURE1, offsetCounter, (byte) 2,
-                                                         XTVOValueType.SHORT, 1.0f / 32767f);
+                                                         XTVOValueType.FLOAT, 1.0f);
 
             List<XTVOAttribute> attribList = new ArrayList<>();
             attribList.add(vertexAttrib);
@@ -538,76 +594,90 @@ public class ModelImporter extends PayloadPanel {
                 }
                 if (tex0Buff != null) {
                     AIVector3D tex0 = tex0Buff.get(j);
-                    vertex.put(tex0Attrib, List.of((tex0.x() % 1.0f) * 32767f, (tex0.y() % 1.0f) * 32767f));
+                    vertex.put(tex0Attrib, List.of(tex0.x(), tex0.y()));
                 }
                 if (tex1Buff != null) {
                     AIVector3D tex1 = tex1Buff.get(j);
-                    vertex.put(tex1Attrib, List.of((tex1.x() % 1.0f) * 32767f, (tex1.y() % 1.0f) * 32767f));
+                    vertex.put(tex1Attrib, List.of(tex1.x(), tex1.y()));
                 }
 
                 vertices.add(vertex);
             }
 
-            Map<Short, Short> boneMapping = new HashMap<>();
-            // bone mapping
-            if (mesh.mNumBones() != 0) {
-                for (short j = 0; j < mesh.mNumBones(); j++) {
-                    AIBone bone = AIBone.create(mBones.get(j));
-                    AIVertexWeight.Buffer weights = bone.mWeights();
+            Map<Short, Short> boneMapping = processBoneMappingAndWeights(mesh, vertices, idxAttrib, wgtAttrib, tnoj);
+            Map<Short, Short> changedBoneMapping = new HashMap<>();
 
-                    short id = 0;
-                    for (; id < tnoj.size(); id++)
-                        if (tnoj.get(id).getName().equals(bone.mName().dataString()))
-                            break;
-
-                    boneMapping.put(j, id);
-
-                    for (int k = 0; k < bone.mNumWeights(); k++) {
-                        AIVertexWeight weight = weights.get(k);
-                        int vertexId = weight.mVertexId();
-                        float val = weight.mWeight() * 255;
-
-                        vertices.get(vertexId).computeIfAbsent(idxAttrib, a -> new ArrayList<Number>()).add(j * 3);
-                        vertices.get(vertexId).computeIfAbsent(wgtAttrib, a -> new ArrayList<Number>()).add(val);
-                    }
+            for (Map.Entry<Short, Short> entry : boneMapping.entrySet()) {
+                if (!entry.getValue().equals(previousBoneMapping.get(entry.getKey()))) {
+                    changedBoneMapping.put(entry.getKey(), entry.getValue());
                 }
+            }
 
-                vertices.forEach(a -> {
-                    a.putIfAbsent(wgtAttrib, new ArrayList<>());
-                    a.putIfAbsent(idxAttrib, new ArrayList<>());
-                    Utils.padList(a.get(wgtAttrib), wgtAttrib.getCount(), 0);
-                    Utils.padList(a.get(idxAttrib), idxAttrib.getCount(), 0);
-                });
+            // Update previous bone mapping for next iteration
+            previousBoneMapping.clear();
+            previousBoneMapping.putAll(boneMapping);
+        
+            if (!changedBoneMapping.isEmpty()) {
+                hsemPayload.add(new HSEMJointEntry(changedBoneMapping));
             }
 
             List<XTVOVertex> xtvoVertices = vertices.stream().map(XTVOVertex::new)
-                                                    .collect(Collectors.toCollection(ArrayList::new));
-            List<XDIOFace> faces = new ArrayList<>();
-            for (int j = 0; j < mesh.mNumFaces(); j++) {
-                AIFace face = mFaces.get(j);
-                faces.add(new XDIOFace(face.mIndices().get(0), face.mIndices().get(1), face.mIndices().get(2)));
-            }
-
-            xtvoPayload.add(new XTVOPayload(null, attribList, xtvoVertices, (int) comboBox.getSelectedItem(),
-                                            (short) 0x3001, (short) 0, 0x00010309, 0x73, 0x01));
-            xdioPayload.add(new XDIOPayload(null, faces, (short) 0x3001, (short) 0, 5));
-
-            //hsemPayload.add(new HSEM07Entry((short) 0x000F, (short) 0, (short) 0, (short) 0));
-            if (!boneMapping.isEmpty())
-                hsemPayload.add(new HSEMJointEntry(boneMapping));
-            hsemPayload.add(new HSEMDrawEntry((short) 4, i, i, (short) 0, 0, faces.size() * 3));
+                                                  .collect(Collectors.toCollection(ArrayList::new));
+           List<XDIOFace> faces = new ArrayList<>();
+          for (int j = 0; j < mesh.mNumFaces(); j++) {
+             AIFace face = mFaces.get(j);
+            faces.add(new XDIOFace(face.mIndices().get(0), face.mIndices().get(1), face.mIndices().get(2)));
         }
 
+          xtvoPayload.add(new XTVOPayload(null, attribList, xtvoVertices, (int) 8, (short) 0x3001,
+                                         (short) 0, 0x00010309, 0x73, 0x01));
+           xdioPayload.add(new XDIOPayload(null, faces, (short) 0x3001, (short) 0, 5));
+
+           hsemPayload.add(new HSEMDrawEntry((short) 4, (short) i, (short) i, (short) 0, 0, faces.size() * 3));
+
+       }
         float[] headerArray = rootKCAP.getHSEM().get(0).getHeaderData();
-        HSEMPayload hsemEntry = new HSEMPayload(null, hsemPayload, -1, (short) 0, (byte) 0, (byte) 0, hsemHeaderArray, 1, 0);
+        HSEMPayload hsemEntry = new HSEMPayload(null, hsemPayload, -1, (short) 0, (byte) 0, (byte) 0, headerArray, 1, 0);
 
         Main.LOGGER.info(String.format("XDIO: %d | XTVO: %d", xdioPayload.size(), xtvoPayload.size()));
-
+       
         rootKCAP.setHSEM(new HSEMKCAP(rootKCAP, List.of(hsemEntry)));
         rootKCAP.setXDIP(new XDIPKCAP(rootKCAP, xdioPayload));
         rootKCAP.setXTVP(new XTVPKCAP(rootKCAP, xtvoPayload));
         if (!tnoj.isEmpty())
             rootKCAP.setTNOJ(new TNOJKCAP(rootKCAP, tnoj));
+    }
+
+    public void loadAnimations() {
+        for (int i = 0; i < scene.mNumAnimations(); i++) {
+            AIAnimation animation = AIAnimation.create(scene.mAnimations().get(i));
+
+            int index;
+
+            switch(animation.mName().dataString()) {
+                case "idle": index = 0; break;
+                case "run": index = 1; break;
+                case "happy": index = 2; break;
+                case "refuse": index = 3; break;
+                case "sleep": index = 4; break;
+                case "exhausted": index = 5; break;
+                case "attack": index = 6; break;
+                case "attack2": index = 7; break;
+                case "attack3": index = 8; break;
+                case "guard": index = 9; break;
+                case "hit": index = 10; break;
+                case "defeated": index = 11; break;
+                case "specialattack": index = 12; break;
+                case "backstep": index = 13; break;
+                default: index = -1; break;
+            }
+
+            if (index > -1 && index < 14) {
+                TDTMKCAP newTDTM = new TDTMKCAP(rootKCAP.getParent(), animation);
+
+                tdtmKCAPs.set(index, newTDTM);
+            }
+        }
     }
 
     private float calculateModelScale() {
@@ -665,6 +735,14 @@ public class ModelImporter extends PayloadPanel {
         return scales;
     }
 
+    private float srgbToLinear(float c) {
+        if (c <= 0.04045f) {
+            return c / 12.92f;
+        } else {
+            return (float) Math.pow((c + 0.055f) / 1.055f, 2.4f);
+        }
+    }
+    
     @SuppressWarnings("resource")
     private static boolean isJointNode(AINode node) {
         if (node == null)
@@ -699,49 +777,103 @@ public class ModelImporter extends PayloadPanel {
     }
 
     @SuppressWarnings("resource")
-    private List<TNOJPayload> loadJoints(float scale) {
+    private List<TNOJPayload> loadJoints(float scale, AIScene scene) {
         List<TNOJPayload> tnojList = new ArrayList<>();
         List<String> names = new ArrayList<>();
 
-        for (AINode bla : jointNodes) {
-            AINode parent = bla.mParent();
-            AIMatrix4x4 trans = bla.mTransformation();
-
-            String name = bla.mName().dataString();
-
-            int parentId = parent != null ? names.indexOf(parent.mName().dataString()) : -1;
-
-            if (parentId == -1 && parent != null && parent.mName().dataString().startsWith(JOINT_PREFIXES[0])
-                && !name.startsWith(JOINT_PREFIXES[1]))
-                Main.LOGGER.severe(() -> "AINode " + name
-                                         + " order is invalid, parent node has not been processed yet.");
-
-            int unknown1 = 0;
-            int unknown2 = 0;
-
-            AIVector3D pos = AIVector3D.create();
-            AIQuaternion quat = AIQuaternion.create();
-            AIVector3D sc = AIVector3D.create();
-            Assimp.aiDecomposeMatrix(trans, sc, quat, pos);
-
-            float[] local_matrix = { trans.a1(), trans.a2(), trans.a3(), trans.a4(), trans.b1(), trans.b2(), trans.b3(),
-                                     trans.b4(), trans.c1(), trans.c2(), trans.c3(), trans.c4(), trans.d1(), trans.d2(),
-                                     trans.d3(), trans.d4() };
-            float[] offsetVector = { trans.a4() * scale, trans.b4() * scale, trans.c4() * scale, 0.0f };
-            float[] rotationQuat = { quat.x(), quat.y(), quat.z(), quat.w() }; // Need to extract the scale first
-            float[] scaleVector = { 1.0f, 1.0f, 1.0f, 0.0f };
-            float[] localScaleVector = { sc.x(), sc.y(), sc.z(), 0.0f };
+        // Process each node to load joints and their corresponding bone matrices
+        for (AINode nodes : jointNodes) {
+            String name = nodes.mName().dataString();
+            System.out.print(name);
 
             if (!name.startsWith(JOINT_PREFIXES[0]) && !name.startsWith(JOINT_PREFIXES[1]))
                 continue;
 
-            float[] ibpm = jointBones.getOrDefault(name, IDENTITY_MATRIX);
+            AINode parent = nodes.mParent();
+            int parentId = parent != null ? names.indexOf(parent.mName().dataString()) : -1;
+
+            Matrix4f matrix = new Matrix4f(aiMatrix4x4ToMatrix4f(nodes.mTransformation()));
+
+            Vector3f translation = new Vector3f();
+            Quaternionf rotation = new Quaternionf();
+            Vector3f jointscale = new Vector3f();
+
+            matrix.getTranslation(translation);
+            matrix.getNormalizedRotation(rotation);
+            matrix.getScale(jointscale);
+
+            float[] translationArray = { translation.x * scale, translation.y * scale, translation.z * scale, 0.0f };
+            float[] rotationArray = { rotation.x, rotation.y, rotation.z, rotation.w };
+            float[] scaleArray = { 1.0f, 1.0f, 1.0f, 0.0f }; //0.0f is padding
+            float[] localScaleVector = { jointscale.x, jointscale.y, jointscale.z, 0.0f };// 0.0f is padding
+
+            Matrix4f globalTransform = computeGlobalTransform(nodes); // Get Global Transformation Matrix
+            // Translation needs scale applied    
+            Vector3f translation2 = new Vector3f();
+            globalTransform.getTranslation(translation2);
+            globalTransform.setTranslation(translation2.x * scale, translation2.y * scale, translation2.z * scale); 
+                                                                              
+            // Transposing from Column to Row Order, inverting and putting into the array
+            float[] ibpm = matrixToArray(transposeMatrix(globalTransform.invert())); 
+            
             names.add(name);
-            tnojList.add(new TNOJPayload(null, parentId, name, unknown1, unknown2, ibpm, offsetVector, rotationQuat,
-                                         scaleVector, localScaleVector));
+
+            tnojList.add(new TNOJPayload(null, parentId, name, 0, 0, ibpm, translationArray, rotationArray, scaleArray,
+                                         localScaleVector));
+
         }
 
         return tnojList;
+    }
+
+    
+    private Matrix4f computeGlobalTransform(AINode node) {
+        Matrix4f globalTransform = new Matrix4f(aiMatrix4x4ToMatrix4f(node.mTransformation()));
+        AINode parent = node.mParent();
+        while (parent != null) {
+            Matrix4f parentTransform = aiMatrix4x4ToMatrix4f(parent.mTransformation());
+            globalTransform.mulLocal(parentTransform);
+            parent = parent.mParent();
+        }
+        return globalTransform;
+    }
+
+    private Matrix4f aiMatrix4x4ToMatrix4f(AIMatrix4x4 matrix) {
+        return new Matrix4f(matrix.a1(), matrix.b1(), matrix.c1(), matrix.d1(), // Column 1
+                            matrix.a2(), matrix.b2(), matrix.c2(), matrix.d2(), // Column 2
+                            matrix.a3(), matrix.b3(), matrix.c3(), matrix.d3(), // Column 3
+                            matrix.a4(), matrix.b4(), matrix.c4(), matrix.d4() // Column 4
+        );
+    }
+
+    public static Matrix4f transposeMatrix(Matrix4f matrix) {
+        Matrix4f result = new Matrix4f();
+        result.m00(matrix.m00());
+        result.m01(matrix.m10());
+        result.m02(matrix.m20());
+        result.m03(matrix.m30());
+        result.m10(matrix.m01());
+        result.m11(matrix.m11());
+        result.m12(matrix.m21());
+        result.m13(matrix.m31());
+        result.m20(matrix.m02());
+        result.m21(matrix.m12());
+        result.m22(matrix.m22());
+        result.m23(matrix.m32());
+        result.m30(matrix.m03());
+        result.m31(matrix.m13());
+        result.m32(matrix.m23());
+        result.m33(matrix.m33());
+        return result;
+    }
+
+    private float[] matrixToArray(Matrix4fc matrix) {
+        float[] array = new float[16];
+        if (matrix == null) {
+            return IDENTITY_MATRIX;
+        }
+        matrix.get(array);
+        return array;
     }
 
     private void tnojToObj(PrintStream stream) {
@@ -777,5 +909,21 @@ public class ModelImporter extends PayloadPanel {
         }
 
         rootKCAP = (HSMPKCAP) file;
+
+        tdtmKCAPs = new ArrayList<TDTMKCAP>();
+
+        List<ResPayload> otherPayloads = rootKCAP.getParent().getEntries();
+
+        for (int i = 0; i < otherPayloads.size(); i++) {
+            if (otherPayloads.get(i).getType() == Payload.KCAP) {
+                if (((AbstractKCAP)otherPayloads.get(i)).getKCAPType() == KCAPType.TDTM) {
+                    TDTMKCAP tdtm = (TDTMKCAP)otherPayloads.get(i);
+                    tdtmKCAPs.add(tdtm);
+                }
+            }
+            else {
+                tdtmKCAPs.add(null);
+            }
+        }
     }
 }

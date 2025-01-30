@@ -2,6 +2,12 @@ package net.digimonworld.decodetools.res.payload;
 
 import java.nio.ByteBuffer;
 
+import java.util.List;
+import java.util.ArrayList;
+
+import org.lwjgl.assimp.AIVectorKey;
+import org.lwjgl.assimp.AIQuatKey;
+
 import net.digimonworld.decodetools.core.Access;
 import net.digimonworld.decodetools.core.Utils;
 import net.digimonworld.decodetools.res.ResData;
@@ -92,6 +98,116 @@ public class VCTMPayload extends ResPayload {
             data2[i] = new VCTMEntry(source.readByteArray(coordSize));
         
         source.setPosition(Utils.align(source.getPosition(), 0x04));
+    }
+
+    // Position/Scale (3 Values)
+    public VCTMPayload(AbstractKCAP parent, List<AIVectorKey> keys, float duration) {
+        super(parent);
+        
+        numEntries = keys.size();
+
+        coordSize = 12; // byte length of float16 values x 3
+        entrySize = 2; // byte length of time stamps
+        entriesStart = 0x20;
+        coordStart = entriesStart + entrySize * numEntries;
+        
+        interpolationMode = InterpolationMode.LINEAR_3D;
+        
+        componentCount = 0x3;
+        componentType = ComponentType.FLOAT16;
+        
+        timeScale = TimeScale.EVERY_1_FRAMES;
+        timeType = TimeType.INT8;
+        
+        unk4 = 0;
+        unknown4 = 0;
+        unknown5 = 0;
+        
+        data1 = new VCTMEntry[numEntries];
+        data2 = new VCTMEntry[numEntries];
+        
+        for (int i = 0; i < numEntries; i++) {
+            // Convert time data to int8 bytes
+            double time = keys.get(i).mTime()/3;
+
+            int newTime = (int) time;
+
+            byte[] timeBytes = { (byte) newTime };
+
+            data1[i] = new VCTMEntry(timeBytes);
+        }
+        
+        for (int i = 0; i < numEntries; i++) {
+            // Convert key data to float16 bytes
+            short xVal = singleToHalf(keys.get(i).mValue().x());
+            short yVal = singleToHalf(keys.get(i).mValue().y());
+            short zVal = singleToHalf(keys.get(i).mValue().z());
+
+            byte[] xBytes = { (byte) (xVal >> 8), (byte) (xVal) };
+            byte[] yBytes = { (byte) (yVal >> 8), (byte) (yVal) };
+            byte[] zBytes = { (byte) (zVal >> 8), (byte) (zVal) };
+
+            byte[] allBytes = {xBytes[0], xBytes[1], yBytes[0], yBytes[1], zBytes[0], zBytes[1] };
+
+            data2[i] = new VCTMEntry(allBytes);
+        }
+            
+    }
+
+    // Rotation
+    public VCTMPayload(AbstractKCAP parent, List<AIQuatKey> keys, float duration, boolean rotation) {
+        super(parent);
+        
+        numEntries = keys.size();
+
+        coordSize = 16; // byte length of float16 values x 4
+        entrySize = 2; // byte length of time stamps
+        entriesStart = 0x20;
+        coordStart = entriesStart + entrySize * numEntries;
+        
+        interpolationMode = InterpolationMode.LINEAR_3D;
+        
+        componentCount = 0x4;
+        componentType = ComponentType.FLOAT16;
+        
+        timeScale = TimeScale.EVERY_1_FRAMES;
+        timeType = TimeType.INT8;
+        
+        unk4 = 0;
+        unknown4 = 0;
+        unknown5 = 0;
+        
+        data1 = new VCTMEntry[numEntries];
+        data2 = new VCTMEntry[numEntries];
+        
+        for (int i = 0; i < numEntries; i++) {
+            // Convert time data to int8 bytes
+            double time = keys.get(i).mTime()/3;
+
+            int newTime = (int) time;
+
+            byte[] timeBytes = { (byte) newTime };
+
+            data1[i] = new VCTMEntry(timeBytes);
+        }
+        
+        for (int i = 0; i < numEntries; i++) {
+            // Convert key data to float16 bytes
+            short xVal = singleToHalf(keys.get(i).mValue().x());
+            short yVal = singleToHalf(keys.get(i).mValue().y());
+            short zVal = singleToHalf(keys.get(i).mValue().z());
+            short wVal = singleToHalf(keys.get(i).mValue().w());
+
+            byte[] xBytes = { (byte) (xVal >> 8), (byte) (xVal) };
+            byte[] yBytes = { (byte) (yVal >> 8), (byte) (yVal) };
+            byte[] zBytes = { (byte) (zVal >> 8), (byte) (zVal) };
+            byte[] wBytes = { (byte) (wVal >> 8), (byte) (wVal) };
+
+            byte[] allBytes = {xBytes[0], xBytes[1], yBytes[0], yBytes[1], zBytes[0], zBytes[1], wBytes[0], wBytes[1] };
+
+            data2[i] = new VCTMEntry(allBytes);
+        }
+            
     }
 
     public float[] getFrameList() {
@@ -201,7 +317,7 @@ public class VCTMPayload extends ResPayload {
                 float16data[2] = data[0];
                 float16data[3] = data[1];
 
-                finalVal = convert16to32(ByteBuffer.wrap(float16data).getInt());
+                finalVal = halfToSingle(ByteBuffer.wrap(float16data).getInt());
                 break;
             case INT16:
                 finalVal = Float.intBitsToFloat(ByteBuffer.wrap(data).getInt());
@@ -237,7 +353,7 @@ public class VCTMPayload extends ResPayload {
         return finalVal;
     }
 
-    private float convert16to32 (int float16bits) {
+    private float halfToSingle (int float16bits) {
         int nonSign = float16bits & 0x7fff;
         int sign = float16bits & 0x8000;
         int exp = float16bits & 0x7c00;
@@ -252,6 +368,33 @@ public class VCTMPayload extends ResPayload {
         nonSign = nonSign | sign;
 
         return Float.intBitsToFloat(nonSign);
+    }
+
+    public static short singleToHalf(float single) {
+        int singleBits = Float.floatToIntBits(single);
+        int sign = (singleBits >> 31) & 0x1;
+        int exponent = (singleBits >> 23) & 0xFF;
+        int fraction = singleBits & 0x7FFFFF;
+        short half;
+    
+        if (exponent == 0xFF) { // Handle NaN and infinity
+            half = (short) ((sign << 15) | (0x1F << 10) | (fraction != 0 ? 0x200 : 0));
+        } else {
+            int newExponent = exponent - 127 + 15;
+            if (newExponent >= 0x1F) { // Handle overflow to infinity
+                half = (short) ((sign << 15) | (0x1F << 10));
+            } else if (newExponent <= 0) { // Handle subnormal values
+                if (newExponent < -10) {
+                    half = (short) (sign << 15);
+                } else {
+                    fraction = (fraction | 0x800000) >> (1 - newExponent);
+                    half = (short) ((sign << 15) | (fraction >> 13));
+                }
+            } else { // Normal conversion
+                half = (short) ((sign << 15) | (newExponent << 10) | (fraction >> 13));
+            }
+        }
+        return half;
     }
 
     private void reverseArray(byte arr[]) {

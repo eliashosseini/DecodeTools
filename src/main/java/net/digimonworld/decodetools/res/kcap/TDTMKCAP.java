@@ -11,6 +11,11 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import org.lwjgl.assimp.AIAnimation;
+import org.lwjgl.assimp.AINodeAnim;
+import org.lwjgl.assimp.AIQuatKey;
+import org.lwjgl.assimp.AIVectorKey;
+
 import de.javagl.jgltf.impl.v2.Accessor;
 import de.javagl.jgltf.impl.v2.Animation;
 import de.javagl.jgltf.impl.v2.AnimationChannel;
@@ -105,6 +110,116 @@ public class TDTMKCAP extends AbstractKCAP {
         long expectedEnd = info.startAddress + info.size;
         if (source.getPosition() != expectedEnd)
             Main.LOGGER.warning(() -> "Final position for TDTM KCAP does not match the header. Current: " + source.getPosition() + " Expected: " + expectedEnd);
+    }
+
+    public TDTMKCAP(AbstractKCAP parent, AIAnimation animation) {
+        super(parent, 0);
+
+        float duration = (float) animation.mDuration() / 333;
+
+        time1 = 0;
+        time2 = duration;
+        time3 = 0;
+        time4 = duration;
+
+        int vctmCount = 0;
+        int qstmCount = 0;
+
+        //read from Channels
+        for (int i = 0; i < animation.mNumChannels(); i++) {
+            AINodeAnim nodeAnim = AINodeAnim.create(animation.mChannels().get(i));
+
+            List<AIVectorKey> posData = new ArrayList<AIVectorKey>();
+            List<AIQuatKey> rotData = new ArrayList<AIQuatKey>();
+            List<AIVectorKey> scaData = new ArrayList<AIVectorKey>();
+
+            String nodeName = nodeAnim.mNodeName().dataString();
+            System.out.println(nodeName);
+
+            short jointId = (short)i;
+            
+            //get Position Keyframes
+            AIVectorKey.Buffer positionKeys = nodeAnim.mPositionKeys();
+            for (int j = 0; j < nodeAnim.mNumPositionKeys(); j++) {
+                AIVectorKey key = positionKeys.get(j);
+                posData.add(key);
+                System.out.println("Time: " + key.mTime() + ", Position: " + key.mValue().x() + ", " + key.mValue().y() + ", " + key.mValue().z());
+            }
+
+            QSTMPayload positionQSTM = null;
+            VCTMPayload positionVCTM = null;
+
+            if (nodeAnim.mNumPositionKeys() > 0) {
+                if (nodeAnim.mNumPositionKeys() < 2) {
+                    positionQSTM = new QSTMPayload(this, posData.get(0));
+                    qstm.add(positionQSTM);
+                    tdtmEntry.add(new TDTMEntry(TDTMMode.TRANSLATION, (byte)0x10, jointId, qstmCount));
+                    qstmCount++;
+                }
+                else {
+                    positionQSTM = new QSTMPayload(this, vctmCount);
+                    qstm.add(positionQSTM);
+                    tdtmEntry.add(new TDTMEntry(TDTMMode.TRANSLATION, (byte)0x10, jointId, qstmCount));
+                    qstmCount++;
+
+                    positionVCTM = new VCTMPayload(this, posData, duration);
+                    vctm.add(positionVCTM);
+                    vctmCount++;
+                }
+            }
+            
+            //get Rotation Keyframes
+            AIQuatKey.Buffer rotationKeys = nodeAnim.mRotationKeys();
+            for (int j = 0; j < nodeAnim.mNumRotationKeys(); j++) {
+                AIQuatKey key = rotationKeys.get(j);
+                rotData.add(key);
+                System.out.println("Time: " + key.mTime() + ", Rotation: " + key.mValue().x() + ", " + key.mValue().y() + ", " + key.mValue().z() + ", " + key.mValue().w());
+            }
+
+            QSTMPayload rotationQSTM = null;
+            VCTMPayload rotationVCTM = null;
+
+            if (nodeAnim.mNumRotationKeys() > 0) {
+                rotationQSTM = new QSTMPayload(this, vctmCount);
+                qstm.add(rotationQSTM);
+                tdtmEntry.add(new TDTMEntry(TDTMMode.ROTATION, (byte)0x10, jointId, qstmCount));
+                qstmCount++;
+
+                rotationVCTM = new VCTMPayload(this, rotData, duration, true);
+                vctm.add(rotationVCTM);
+                vctmCount++;
+            }
+            
+            //get Scaling Keyframes
+            AIVectorKey.Buffer scalingKeys = nodeAnim.mScalingKeys();
+            for (int j = 0; j < nodeAnim.mNumScalingKeys(); j++) {
+                AIVectorKey key = scalingKeys.get(j);
+                scaData.add(key);
+                System.out.println("Time: " + key.mTime() + ", Scale: " + key.mValue().x() + ", " + key.mValue().y() + ", " + key.mValue().z());
+            }
+
+            QSTMPayload scaleQSTM = null;
+            VCTMPayload scaleVCTM = null;
+
+            if (nodeAnim.mNumScalingKeys() > 0) {
+                if (nodeAnim.mNumScalingKeys() < 2) {
+                    scaleQSTM = new QSTMPayload(this, scaData.get(0));
+                    qstm.add(scaleQSTM);
+                    tdtmEntry.add(new TDTMEntry(TDTMMode.SCALE, (byte)0x10, jointId, qstmCount));
+                    qstmCount++;
+                }
+                else {
+                    scaleQSTM = new QSTMPayload(this, vctmCount);
+                    qstm.add(scaleQSTM);
+                    tdtmEntry.add(new TDTMEntry(TDTMMode.SCALE, (byte)0x10, jointId, qstmCount));
+                    qstmCount++;
+
+                    scaleVCTM = new VCTMPayload(this, scaData, duration);
+                    vctm.add(scaleVCTM);
+                    vctmCount++;
+                }
+            }
+        }
     }
 
     public void exportGLTFAnimation(GlTF instance, int index) {
@@ -660,9 +775,9 @@ public class TDTMKCAP extends AbstractKCAP {
         private short jointId;
         private int qstmId;
         
-        public TDTMEntry(TDTMMode unknown1, byte unknown2, short jointId, int qstmId) {
-            this.mode = unknown1;
-            this.transformType = unknown2;
+        public TDTMEntry(TDTMMode mode, byte transformType, short jointId, int qstmId) {
+            this.mode = mode;
+            this.transformType = transformType;
             this.jointId = jointId;
             this.qstmId = qstmId;
         }

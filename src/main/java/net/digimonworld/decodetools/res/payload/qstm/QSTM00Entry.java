@@ -21,6 +21,12 @@ public class QSTM00Entry implements QSTMEntry {
         for (int i = 0; i < entryCount; i++)
             values.add(source.readFloat());
     }
+
+    public QSTM00Entry(List<Float> vals) {
+        axis = Axis.X;
+        mode = 0;
+        values = vals;
+    }
     
     public Axis getAxis() {
         return axis;

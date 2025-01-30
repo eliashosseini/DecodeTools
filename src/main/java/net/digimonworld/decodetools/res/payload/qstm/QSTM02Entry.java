@@ -10,6 +10,11 @@ public class QSTM02Entry implements QSTMEntry {
         this.axis = Axis.fromByte((byte) source.readInteger());
         this.vctmId = source.readInteger();
     }
+
+    public QSTM02Entry(int vctmId) {
+        this.axis = Axis.X;
+        this.vctmId = vctmId;
+    }
     
     public Axis getAxis() {
         return axis;
