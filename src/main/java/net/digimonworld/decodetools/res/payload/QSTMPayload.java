@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.lwjgl.assimp.AIQuatKey;
 import org.lwjgl.assimp.AIVectorKey;
 
 import net.digimonworld.decodetools.core.Access;
@@ -15,7 +16,7 @@ import net.digimonworld.decodetools.res.payload.qstm.QSTM02Entry;
 import net.digimonworld.decodetools.res.payload.qstm.QSTMEntry;
 
 public class QSTMPayload extends ResPayload {
-    private short unknown1; // known values 0 1 2 4, never read?
+    private short unknown1; // known values 0 1 2 4, never read? QSTM 0 = 2, QSTM 2 = 4
     
     private List<QSTMEntry> entries = new ArrayList<>();
     
@@ -33,7 +34,7 @@ public class QSTMPayload extends ResPayload {
     public QSTMPayload(AbstractKCAP parent, AIVectorKey key) {
         super(parent);
 
-        unknown1 = 0; // Figure out what this value means?
+        unknown1 = 2; // Figure out what this value means?
 
         List<Float> vals = new ArrayList<Float>();
 
@@ -46,10 +47,27 @@ public class QSTMPayload extends ResPayload {
         entries.add(qstmEntry);
     }
 
+    public QSTMPayload(AbstractKCAP parent, AIQuatKey key) {
+        super(parent);
+
+        unknown1 = 2; // Figure out what this value means?
+
+        List<Float> vals = new ArrayList<Float>();
+
+        vals.add(key.mValue().x());
+        vals.add(key.mValue().y());
+        vals.add(key.mValue().z());
+        vals.add(key.mValue().w());
+
+        QSTMEntry qstmEntry = new QSTM00Entry(vals);
+
+        entries.add(qstmEntry);
+    }
+
     public QSTMPayload(AbstractKCAP parent, int vctmId) {
         super(parent);
 
-        unknown1 = 0; // Figure out what this value means?
+        unknown1 = 4; // Figure out what this value means?
 
         QSTMEntry qstmEntry = new QSTM02Entry(vctmId);
 

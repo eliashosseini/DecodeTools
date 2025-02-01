@@ -180,14 +180,22 @@ public class TDTMKCAP extends AbstractKCAP {
             VCTMPayload rotationVCTM = null;
 
             if (nodeAnim.mNumRotationKeys() > 0) {
-                rotationQSTM = new QSTMPayload(this, vctmCount);
-                qstm.add(rotationQSTM);
-                tdtmEntry.add(new TDTMEntry(TDTMMode.ROTATION, (byte)0x10, jointId, qstmCount));
-                qstmCount++;
+                if (nodeAnim.mNumRotationKeys() < 2) {
+                    rotationQSTM = new QSTMPayload(this, rotData.get(0));
+                    qstm.add(rotationQSTM);
+                    tdtmEntry.add(new TDTMEntry(TDTMMode.ROTATION, (byte)0x10, jointId, qstmCount));
+                    qstmCount++;
+                }
+                else {
+                    rotationQSTM = new QSTMPayload(this, vctmCount);
+                    qstm.add(rotationQSTM);
+                    tdtmEntry.add(new TDTMEntry(TDTMMode.ROTATION, (byte)0x10, jointId, qstmCount));
+                    qstmCount++;
 
-                rotationVCTM = new VCTMPayload(this, rotData, duration, true);
-                vctm.add(rotationVCTM);
-                vctmCount++;
+                    rotationVCTM = new VCTMPayload(this, rotData, duration, true);
+                    vctm.add(rotationVCTM);
+                    vctmCount++;
+                }
             }
             
             //get Scaling Keyframes
