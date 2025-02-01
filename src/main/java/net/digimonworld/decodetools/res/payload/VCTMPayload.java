@@ -143,9 +143,9 @@ public class VCTMPayload extends ResPayload {
             short yVal = singleToHalf(keys.get(i).mValue().y());
             short zVal = singleToHalf(keys.get(i).mValue().z());
 
-            byte[] xBytes = { (byte) (xVal >> 8), (byte) (xVal) };
-            byte[] yBytes = { (byte) (yVal >> 8), (byte) (yVal) };
-            byte[] zBytes = { (byte) (zVal >> 8), (byte) (zVal) };
+            byte[] xBytes = { (byte) (xVal), (byte) (xVal >> 8) };
+            byte[] yBytes = { (byte) (yVal), (byte) (yVal >> 8) };
+            byte[] zBytes = { (byte) (zVal), (byte) (zVal >> 8) };
 
             byte[] allBytes = {xBytes[0], xBytes[1], yBytes[0], yBytes[1], zBytes[0], zBytes[1] };
 
@@ -198,10 +198,10 @@ public class VCTMPayload extends ResPayload {
             short zVal = singleToHalf(keys.get(i).mValue().z());
             short wVal = singleToHalf(keys.get(i).mValue().w());
 
-            byte[] xBytes = { (byte) (xVal >> 8), (byte) (xVal) };
-            byte[] yBytes = { (byte) (yVal >> 8), (byte) (yVal) };
-            byte[] zBytes = { (byte) (zVal >> 8), (byte) (zVal) };
-            byte[] wBytes = { (byte) (wVal >> 8), (byte) (wVal) };
+            byte[] xBytes = { (byte) (xVal), (byte) (xVal >> 8) };
+            byte[] yBytes = { (byte) (yVal), (byte) (yVal >> 8) };
+            byte[] zBytes = { (byte) (zVal), (byte) (zVal >> 8) };
+            byte[] wBytes = { (byte) (wVal), (byte) (wVal >> 8) };
 
             byte[] allBytes = {xBytes[0], xBytes[1], yBytes[0], yBytes[1], zBytes[0], zBytes[1], wBytes[0], wBytes[1] };
 
