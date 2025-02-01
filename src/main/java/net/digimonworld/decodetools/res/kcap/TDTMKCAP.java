@@ -115,7 +115,7 @@ public class TDTMKCAP extends AbstractKCAP {
     public TDTMKCAP(AbstractKCAP parent, AIAnimation animation) {
         super(parent, 0);
 
-        float duration = (float) animation.mDuration() / 333;
+        float duration = roundToNearestHundred((float) (animation.mDuration() / animation.mTicksPerSecond() * 333));
 
         time1 = 0;
         time2 = duration;
@@ -220,6 +220,10 @@ public class TDTMKCAP extends AbstractKCAP {
                 }
             }
         }
+    }
+
+    public static float roundToNearestHundred(float value) {
+        return Math.round(value / 100.0f) * 100.0f;
     }
 
     public void exportGLTFAnimation(GlTF instance, int index) {

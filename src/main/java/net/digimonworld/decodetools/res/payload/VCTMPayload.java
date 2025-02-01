@@ -106,8 +106,8 @@ public class VCTMPayload extends ResPayload {
         
         numEntries = keys.size();
 
-        coordSize = 12; // byte length of float16 values x 3
-        entrySize = 2; // byte length of time stamps
+        coordSize = 2*3; // byte length of float16 values x 3
+        entrySize = 1; // byte length of time stamps
         entriesStart = 0x20;
         coordStart = entriesStart + entrySize * numEntries;
         
@@ -160,8 +160,8 @@ public class VCTMPayload extends ResPayload {
         
         numEntries = keys.size();
 
-        coordSize = 16; // byte length of float16 values x 4
-        entrySize = 2; // byte length of time stamps
+        coordSize = 2*4; // byte length of float16 values x 4
+        entrySize = 1; // byte length of time stamps
         entriesStart = 0x20;
         coordStart = entriesStart + entrySize * numEntries;
         
