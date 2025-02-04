@@ -15,6 +15,7 @@ import org.lwjgl.assimp.AIAnimation;
 import org.lwjgl.assimp.AINodeAnim;
 import org.lwjgl.assimp.AIQuatKey;
 import org.lwjgl.assimp.AIVectorKey;
+import org.lwjgl.assimp.AINode;
 
 import de.javagl.jgltf.impl.v2.Accessor;
 import de.javagl.jgltf.impl.v2.Animation;
@@ -112,7 +113,7 @@ public class TDTMKCAP extends AbstractKCAP {
             Main.LOGGER.warning(() -> "Final position for TDTM KCAP does not match the header. Current: " + source.getPosition() + " Expected: " + expectedEnd);
     }
 
-    public TDTMKCAP(AbstractKCAP parent, AIAnimation animation) {
+    public TDTMKCAP(AbstractKCAP parent, AIAnimation animation, List<AINode> nodes) {
         super(parent, 0);
 
         float duration = roundToNearestHundred((float) (animation.mDuration() / animation.mTicksPerSecond() * 333));
@@ -129,14 +130,24 @@ public class TDTMKCAP extends AbstractKCAP {
         for (int i = 0; i < animation.mNumChannels(); i++) {
             AINodeAnim nodeAnim = AINodeAnim.create(animation.mChannels().get(i));
 
+            String nodeName = nodeAnim.mNodeName().dataString();
+
+            short jointId = -1;
+
+            for (int j = 0; j < nodes.size(); j++) {
+                if (nodes.get(j).mName().dataString().equals(nodeName)) {
+                    jointId = (short)j;
+                    break;
+                }
+            }
+
+            if (jointId == -1) {
+                continue;
+            }
+
             List<AIVectorKey> posData = new ArrayList<AIVectorKey>();
             List<AIQuatKey> rotData = new ArrayList<AIQuatKey>();
             List<AIVectorKey> scaData = new ArrayList<AIVectorKey>();
-
-            String nodeName = nodeAnim.mNodeName().dataString();
-            //System.out.println(nodeName);
-
-            short jointId = (short)i;
             
             //get Position Keyframes
             AIVectorKey.Buffer positionKeys = nodeAnim.mPositionKeys();
@@ -151,10 +162,13 @@ public class TDTMKCAP extends AbstractKCAP {
 
             if (nodeAnim.mNumPositionKeys() > 0) {
                 if (nodeAnim.mNumPositionKeys() < 2) {
-                    positionQSTM = new QSTMPayload(this, posData.get(0));
-                    qstm.add(positionQSTM);
-                    tdtmEntry.add(new TDTMEntry(TDTMMode.TRANSLATION, (byte)0x10, jointId, qstmCount));
-                    qstmCount++;
+                    if (posData.get(0).mValue().x() != 0 || posData.get(0).mValue().y() != 0 ||
+                    posData.get(0).mValue().z() != 0) {
+                        positionQSTM = new QSTMPayload(this, posData.get(0));
+                        qstm.add(positionQSTM);
+                        tdtmEntry.add(new TDTMEntry(TDTMMode.TRANSLATION, (byte)0x10, jointId, qstmCount));
+                        qstmCount++;
+                    }
                 }
                 else {
                     positionQSTM = new QSTMPayload(this, vctmCount);
@@ -211,10 +225,13 @@ public class TDTMKCAP extends AbstractKCAP {
 
             if (nodeAnim.mNumScalingKeys() > 0) {
                 if (nodeAnim.mNumScalingKeys() < 2) {
-                    scaleQSTM = new QSTMPayload(this, scaData.get(0));
-                    qstm.add(scaleQSTM);
-                    tdtmEntry.add(new TDTMEntry(TDTMMode.SCALE, (byte)0x10, jointId, qstmCount));
-                    qstmCount++;
+                    if (scaData.get(0).mValue().x() != 1 || scaData.get(0).mValue().y() != 1 ||
+                    scaData.get(0).mValue().z() != 1) {
+                        scaleQSTM = new QSTMPayload(this, scaData.get(0));
+                        qstm.add(scaleQSTM);
+                        tdtmEntry.add(new TDTMEntry(TDTMMode.SCALE, (byte)0x10, jointId, qstmCount));
+                        qstmCount++;
+                    }
                 }
                 else {
                     scaleQSTM = new QSTMPayload(this, vctmCount);
@@ -261,7 +278,7 @@ public class TDTMKCAP extends AbstractKCAP {
 
         // System.out.println("Animation: " + name);
 
-        float animDuration = (time2-time1)*333;
+        float animDuration = (time2-time1)/333;
 
         // Each TDTM Entry can only map one joint, contains translation OR rotation OR scale
         for (int i = 0; i < tdtmEntry.size(); i++) {

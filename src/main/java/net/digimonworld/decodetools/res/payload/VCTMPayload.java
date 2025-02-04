@@ -128,7 +128,7 @@ public class VCTMPayload extends ResPayload {
         
         for (int i = 0; i < numEntries; i++) {
             // Convert time data to int8 bytes
-            double time = keys.get(i).mTime()/3;
+            double time = (keys.get(i).mTime()*numEntries)/duration;
 
             int newTime = (int) time;
 
@@ -182,7 +182,7 @@ public class VCTMPayload extends ResPayload {
         
         for (int i = 0; i < numEntries; i++) {
             // Convert time data to int8 bytes
-            double time = keys.get(i).mTime()/3;
+            double time = (keys.get(i).mTime()*numEntries)/duration;
 
             int newTime = (int) time;
 
