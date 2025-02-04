@@ -162,13 +162,13 @@ public class TDTMKCAP extends AbstractKCAP {
 
             if (nodeAnim.mNumPositionKeys() > 0) {
                 if (nodeAnim.mNumPositionKeys() < 2) {
-                    // if (posData.get(0).mValue().x() != 0 || posData.get(0).mValue().y() != 0 ||
-                    // posData.get(0).mValue().z() != 0) {
+                    if (posData.get(0).mValue().x() != 0 || posData.get(0).mValue().y() != 0 ||
+                    posData.get(0).mValue().z() != 0) {
                         positionQSTM = new QSTMPayload(this, posData.get(0));
                         qstm.add(positionQSTM);
                         tdtmEntry.add(new TDTMEntry(TDTMMode.TRANSLATION, (byte)0x10, jointId, qstmCount));
                         qstmCount++;
-                    //}
+                    }
                 }
                 else {
                     positionQSTM = new QSTMPayload(this, vctmCount);
@@ -176,7 +176,7 @@ public class TDTMKCAP extends AbstractKCAP {
                     tdtmEntry.add(new TDTMEntry(TDTMMode.TRANSLATION, (byte)0x10, jointId, qstmCount));
                     qstmCount++;
 
-                    positionVCTM = new VCTMPayload(this, posData, duration);
+                    positionVCTM = new VCTMPayload(this, posData, (float)animation.mDuration());
                     vctm.add(positionVCTM);
                     vctmCount++;
                 }
@@ -206,7 +206,7 @@ public class TDTMKCAP extends AbstractKCAP {
                     tdtmEntry.add(new TDTMEntry(TDTMMode.ROTATION, (byte)0x10, jointId, qstmCount));
                     qstmCount++;
 
-                    rotationVCTM = new VCTMPayload(this, rotData, duration, true);
+                    rotationVCTM = new VCTMPayload(this, rotData, (float)animation.mDuration(), true);
                     vctm.add(rotationVCTM);
                     vctmCount++;
                 }
@@ -225,13 +225,13 @@ public class TDTMKCAP extends AbstractKCAP {
 
             if (nodeAnim.mNumScalingKeys() > 0) {
                 if (nodeAnim.mNumScalingKeys() < 2) {
-                    // if (scaData.get(0).mValue().x() != 1 || scaData.get(0).mValue().y() != 1 ||
-                    // scaData.get(0).mValue().z() != 1) {
+                    if (scaData.get(0).mValue().x() != 1 || scaData.get(0).mValue().y() != 1 ||
+                    scaData.get(0).mValue().z() != 1) {
                         scaleQSTM = new QSTMPayload(this, scaData.get(0));
                         qstm.add(scaleQSTM);
                         tdtmEntry.add(new TDTMEntry(TDTMMode.SCALE, (byte)0x10, jointId, qstmCount));
                         qstmCount++;
-                    //}
+                    }
                 }
                 else {
                     scaleQSTM = new QSTMPayload(this, vctmCount);
@@ -239,7 +239,7 @@ public class TDTMKCAP extends AbstractKCAP {
                     tdtmEntry.add(new TDTMEntry(TDTMMode.SCALE, (byte)0x10, jointId, qstmCount));
                     qstmCount++;
 
-                    scaleVCTM = new VCTMPayload(this, scaData, duration);
+                    scaleVCTM = new VCTMPayload(this, scaData, (float)animation.mDuration());
                     vctm.add(scaleVCTM);
                     vctmCount++;
                 }

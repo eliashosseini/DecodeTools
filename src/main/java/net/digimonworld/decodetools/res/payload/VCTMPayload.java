@@ -103,6 +103,8 @@ public class VCTMPayload extends ResPayload {
     // Position/Scale (3 Values)
     public VCTMPayload(AbstractKCAP parent, List<AIVectorKey> keys, float duration) {
         super(parent);
+
+        //float realDuration = roundToNearestHundred((float) (duration / ticksPerSec * 333));
         
         numEntries = keys.size();
 
@@ -208,6 +210,10 @@ public class VCTMPayload extends ResPayload {
             data2[i] = new VCTMEntry(allBytes);
         }
             
+    }
+
+    public static float roundToNearestHundred(float value) {
+        return Math.round(value / 100.0f) * 100.0f;
     }
 
     public float[] getFrameList() {
