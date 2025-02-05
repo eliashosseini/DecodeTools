@@ -46,61 +46,61 @@ public class TDTMPanel extends PayloadPanel {
         this.setLayout(groupLayout);
 
         groupLayout.setHorizontalGroup(
-            groupLayout.createSequentialGroup()
-                .addContainerGap()
-                .addGroup(groupLayout.createParallelGroup(Alignment.LEADING)
-                    .addGroup(groupLayout.createSequentialGroup()
-                        .addComponent(time1Label)
-                        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(time1spinner, GroupLayout.PREFERRED_SIZE, 100, GroupLayout.PREFERRED_SIZE))
-                    .addGroup(groupLayout.createSequentialGroup()
-                        .addComponent(time2Label)
-                        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(time2spinner, GroupLayout.PREFERRED_SIZE, 100, GroupLayout.PREFERRED_SIZE))
-                    .addGroup(groupLayout.createSequentialGroup()
-                        .addComponent(time3Label)
-                        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(time3spinner, GroupLayout.PREFERRED_SIZE, 100, GroupLayout.PREFERRED_SIZE))
-                    .addGroup(groupLayout.createSequentialGroup()
-                        .addComponent(time4Label)
-                        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(time4spinner, GroupLayout.PREFERRED_SIZE, 100, GroupLayout.PREFERRED_SIZE))
-                    .addComponent(qstmCountLabel)
-                    .addComponent(vctmCountLabel)
-                    .addComponent(tableScrollPane, GroupLayout.PREFERRED_SIZE, 400, GroupLayout.PREFERRED_SIZE))
-                .addContainerGap(20, Short.MAX_VALUE)
-        );
+        	    groupLayout.createSequentialGroup()
+        	        .addContainerGap()
+        	        .addGroup(groupLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+        	            .addGroup(groupLayout.createSequentialGroup()
+        	                .addGroup(groupLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+        	                    .addComponent(time1Label)
+        	                    .addComponent(time1spinner, GroupLayout.PREFERRED_SIZE, 100, GroupLayout.PREFERRED_SIZE))
+        	                .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+        	                .addGroup(groupLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+        	                    .addComponent(time2Label)
+        	                    .addComponent(time2spinner, GroupLayout.PREFERRED_SIZE, 100, GroupLayout.PREFERRED_SIZE))
+        	                .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+        	                .addGroup(groupLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+        	                    .addComponent(time3Label)
+        	                    .addComponent(time3spinner, GroupLayout.PREFERRED_SIZE, 100, GroupLayout.PREFERRED_SIZE))
+        	                .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+        	                .addGroup(groupLayout.createParallelGroup(GroupLayout.Alignment.LEADING)
+        	                    .addComponent(time4Label)
+        	                    .addComponent(time4spinner, GroupLayout.PREFERRED_SIZE, 100, GroupLayout.PREFERRED_SIZE)))
+        	            .addGroup(groupLayout.createSequentialGroup()
+        	                .addComponent(qstmCountLabel)
+        	                .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+        	                .addComponent(vctmCountLabel))
+        	            .addComponent(tableScrollPane, GroupLayout.PREFERRED_SIZE, 400, GroupLayout.PREFERRED_SIZE))
+        	        .addContainerGap(20, Short.MAX_VALUE)
+        	);
 
-        groupLayout.setVerticalGroup(
-            groupLayout.createSequentialGroup()
-                .addContainerGap()
-                .addGroup(groupLayout.createParallelGroup(Alignment.BASELINE)
-                    .addComponent(time1Label)
-                    .addComponent(time1spinner, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(LayoutStyle.ComponentPlacement.UNRELATED)
-                .addGroup(groupLayout.createParallelGroup(Alignment.BASELINE)
-                    .addComponent(time2Label)
-                    .addComponent(time2spinner, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(LayoutStyle.ComponentPlacement.UNRELATED)
-                .addGroup(groupLayout.createParallelGroup(Alignment.BASELINE)
-                    .addComponent(time3Label)
-                    .addComponent(time3spinner, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(LayoutStyle.ComponentPlacement.UNRELATED)
-                .addGroup(groupLayout.createParallelGroup(Alignment.BASELINE)
-                    .addComponent(time4Label)
-                    .addComponent(time4spinner, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(qstmCountLabel)
-                .addPreferredGap(LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(vctmCountLabel)
-                .addPreferredGap(LayoutStyle.ComponentPlacement.UNRELATED)
-                .addComponent(tableScrollPane, GroupLayout.PREFERRED_SIZE, 200, GroupLayout.PREFERRED_SIZE)
-                .addContainerGap()
-        );
+        	groupLayout.setVerticalGroup(
+        	    groupLayout.createSequentialGroup()
+        	        .addContainerGap()
+        	        .addGroup(groupLayout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+        	            .addComponent(time1Label)
+        	            .addComponent(time2Label)
+        	            .addComponent(time3Label)
+        	            .addComponent(time4Label))
+        	        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+        	        .addGroup(groupLayout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+        	            .addComponent(time1spinner, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+        	            .addComponent(time2spinner, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+        	            .addComponent(time3spinner, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+        	            .addComponent(time4spinner, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
+        	        .addPreferredGap(LayoutStyle.ComponentPlacement.UNRELATED)
+        	        .addGroup(groupLayout.createParallelGroup(GroupLayout.Alignment.BASELINE)
+        	            .addComponent(qstmCountLabel)
+        	            .addComponent(vctmCountLabel))
+        	        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+        	        .addComponent(tableScrollPane, GroupLayout.PREFERRED_SIZE, 200, GroupLayout.PREFERRED_SIZE)
+        	        .addContainerGap()
+        	);
 
-        // Set the layout for the scrollPane's viewport
-        scrollPane.setViewportView(panel);
-    }
+        	// Set the layout for the scrollPane's viewport
+        	scrollPane.setViewportView(panel);
+}
+
+
 
     @Override
     public void setSelectedFile(Object file) {

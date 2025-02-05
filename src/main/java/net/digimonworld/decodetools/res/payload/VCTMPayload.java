@@ -1,12 +1,10 @@
 package net.digimonworld.decodetools.res.payload;
 
 import java.nio.ByteBuffer;
-
 import java.util.List;
-import java.util.ArrayList;
 
-import org.lwjgl.assimp.AIVectorKey;
 import org.lwjgl.assimp.AIQuatKey;
+import org.lwjgl.assimp.AIVectorKey;
 
 import net.digimonworld.decodetools.core.Access;
 import net.digimonworld.decodetools.core.Utils;
@@ -113,12 +111,12 @@ public class VCTMPayload extends ResPayload {
         entriesStart = 0x20;
         coordStart = entriesStart + entrySize * numEntries;
         
-        interpolationMode = InterpolationMode.LINEAR_3D;
+        interpolationMode = InterpolationMode.SPHERICAL_LINEAR;
         
         componentCount = 0x3;
         componentType = ComponentType.FLOAT16;
         
-        timeScale = TimeScale.EVERY_1_FRAMES;
+        timeScale = TimeScale.EVERY_10_FRAMES;
         timeType = TimeType.INT8;
         
         unk4 = 0;
@@ -130,11 +128,9 @@ public class VCTMPayload extends ResPayload {
         
         for (int i = 0; i < numEntries; i++) {
             // Convert time data to int8 bytes
-            double time = (keys.get(i).mTime()*numEntries)/duration;
+            int newTime = (int) (keys.get(i).mTime() / 30);
 
-            int newTime = (int) time;
-
-            byte[] timeBytes = { (byte) newTime };
+            byte[] timeBytes = { (byte) (newTime & 0xFF) };
 
             data1[i] = new VCTMEntry(timeBytes);
         }
@@ -167,12 +163,12 @@ public class VCTMPayload extends ResPayload {
         entriesStart = 0x20;
         coordStart = entriesStart + entrySize * numEntries;
         
-        interpolationMode = InterpolationMode.LINEAR_3D;
+        interpolationMode = InterpolationMode.SPHERICAL_LINEAR;
         
         componentCount = 0x4;
         componentType = ComponentType.FLOAT16;
         
-        timeScale = TimeScale.EVERY_1_FRAMES;
+        timeScale = TimeScale.EVERY_10_FRAMES;
         timeType = TimeType.INT8;
         
         unk4 = 0;
@@ -184,11 +180,9 @@ public class VCTMPayload extends ResPayload {
         
         for (int i = 0; i < numEntries; i++) {
             // Convert time data to int8 bytes
-            double time = (keys.get(i).mTime()*numEntries)/duration;
+            int newTime = (int) (keys.get(i).mTime() / 30);
 
-            int newTime = (int) time;
-
-            byte[] timeBytes = { (byte) newTime };
+            byte[] timeBytes = { (byte) (newTime & 0xFF) };
 
             data1[i] = new VCTMEntry(timeBytes);
         }
@@ -220,8 +214,8 @@ public class VCTMPayload extends ResPayload {
         float[] frames = new float[numEntries];
 
         for (int i = 0; i < numEntries; i++) {
-            byte[] data = data1[i].getData();
-            
+            byte[] data = { data1[i].getData()[0] };
+
             frames[i] = convertBytesToTime(data);
             frames[i] *= timeScale.value;
         }
@@ -232,7 +226,7 @@ public class VCTMPayload extends ResPayload {
     public float convertBytesToTime(byte[] data) {
         reverseArray(data);
 
-        float finalVal = 0;
+        float finalVal;
 
         switch(timeType) {
             case FLOAT: // float 32?
@@ -248,36 +242,24 @@ public class VCTMPayload extends ResPayload {
             //     finalVal = convert16to32(ByteBuffer.wrap(float16data).getInt());
             //     break;
             case INT16:
-                if (data.length < 4) {
-                    byte[] newData = new byte[4];
-                    for (int j = 1; j <= 4; j++) {
-                        if (j > data.length) {
-                            newData[newData.length-j] = 0x00;
-                        }
-                        else {
-                            newData[newData.length-j] = data[data.length-j]; 
-                        }
-                    }
+                byte[] int16Data = new byte[4];
+                
+                int16Data[0] = (byte)(0x80 & data[0]);
+                int16Data[1] = 0x00;
+                int16Data[2] = (byte)(0x7f & data[0]);
+                int16Data[3] = data[1];
 
-                    data = newData;
-                }
-                finalVal = Float.intBitsToFloat(ByteBuffer.wrap(data).getInt());
+                finalVal = (float)ByteBuffer.wrap(int16Data).getInt();
                 break;
             case INT8:
-                if (data.length < 4) {
-                    byte[] newData = new byte[4];
-                    for (int j = 1; j <= 4; j++) {
-                        if (j > data.length) {
-                            newData[newData.length-j] = 0x00;
-                        }
-                        else {
-                            newData[newData.length-j] = data[data.length-j]; 
-                        }
-                    }
+                byte[] int8Data = new byte[4];
 
-                    data = newData;
-                }
-                finalVal = Float.intBitsToFloat(ByteBuffer.wrap(data).getInt());
+                int8Data[0] = (byte)(0x80 & data[0]);
+                int8Data[1] = 0x00;
+                int8Data[2] = 0x00;
+                int8Data[3] = (byte)(0x7f & data[0]);
+
+                finalVal = (float)ByteBuffer.wrap(int8Data).getInt();
                 break;
             case UINT16:
                 byte[] uint16data = new byte[4];
@@ -286,8 +268,7 @@ public class VCTMPayload extends ResPayload {
                 uint16data[2] = data[0];
                 uint16data[3] = data[1];
                 
-                finalVal = Float.intBitsToFloat(ByteBuffer.wrap(uint16data).getInt());
-                data = uint16data;
+                finalVal = (float)ByteBuffer.wrap(uint16data).getInt();
                 break;
             case UINT8:
                 byte[] uint8data = new byte[4];
@@ -296,8 +277,7 @@ public class VCTMPayload extends ResPayload {
                 uint8data[2] = 0x00;
                 uint8data[3] = data[0];
                 
-                finalVal = Float.intBitsToFloat(ByteBuffer.wrap(uint8data).getInt());
-                data = uint8data;
+                finalVal = (float)ByteBuffer.wrap(uint8data).getInt();
                 break;
             default:
                 finalVal = 0;
@@ -325,11 +305,25 @@ public class VCTMPayload extends ResPayload {
 
                 finalVal = halfToSingle(ByteBuffer.wrap(float16data).getInt());
                 break;
-            case INT16:
-                finalVal = Float.intBitsToFloat(ByteBuffer.wrap(data).getInt());
+                case INT16:
+                byte[] int16Data = new byte[4];
+                
+                int16Data[0] = (byte)(0x80 & data[0]);
+                int16Data[1] = 0x00;
+                int16Data[2] = (byte)(0x7f & data[0]);
+                int16Data[3] = data[1];
+
+                finalVal = (float)ByteBuffer.wrap(int16Data).getInt();
                 break;
             case INT8:
-                finalVal = Float.intBitsToFloat(ByteBuffer.wrap(data).getInt());
+                byte[] int8Data = new byte[4];
+
+                int8Data[0] = (byte)(0x80 & data[0]);
+                int8Data[1] = 0x00;
+                int8Data[2] = 0x00;
+                int8Data[3] = (byte)(0x7f & data[0]);
+
+                finalVal = (float)ByteBuffer.wrap(int8Data).getInt();
                 break;
             case UINT16:
                 byte[] uint16data = new byte[4];
@@ -338,8 +332,7 @@ public class VCTMPayload extends ResPayload {
                 uint16data[2] = data[0];
                 uint16data[3] = data[1];
                 
-                finalVal = Float.intBitsToFloat(ByteBuffer.wrap(uint16data).getInt());
-                data = uint16data;
+                finalVal = (float)ByteBuffer.wrap(uint16data).getInt();
                 break;
             case UINT8:
                 byte[] uint8data = new byte[4];
@@ -348,8 +341,7 @@ public class VCTMPayload extends ResPayload {
                 uint8data[2] = 0x00;
                 uint8data[3] = data[0];
                 
-                finalVal = Float.intBitsToFloat(ByteBuffer.wrap(uint8data).getInt());
-                data = uint8data;
+                finalVal = (float)ByteBuffer.wrap(uint8data).getInt();
                 break;
             default:
                 finalVal = 0;
