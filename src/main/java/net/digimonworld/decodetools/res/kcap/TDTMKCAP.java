@@ -707,9 +707,44 @@ public class TDTMKCAP extends AbstractKCAP {
         }
     }
     
-    @Override
+  
+    public float getTime1() {
+        return time1;
+    }
+    public float getTime2() {
+        return time2;
+    }
+    public float getTime3() {
+        return time3;
+    }
+    public float getTime4() {
+        return time4
+        		;
+    }
+    
+    @SuppressWarnings("exports")
+	public List<TDTMEntry> getTdtmEntries() {
+        return Collections.unmodifiableList(tdtmEntry);
+    }
+
+    public List<QSTMPayload> getQstmEntries() {
+        return Collections.unmodifiableList(qstm);
+    }
+
+    public List<VCTMPayload> getVctmEntries() {
+        return Collections.unmodifiableList(vctm);
+    }
+    
     public int getEntryCount() {
         return 2;
+    }
+    
+    public int getQstmCount() {
+        return qstm.size();
+    }
+    
+    public int getVctmCount() {
+        return vctm.size();
     }
     
     @Override
@@ -792,7 +827,7 @@ public class TDTMKCAP extends AbstractKCAP {
         }
     }
     
-    class TDTMEntry {
+    public static class TDTMEntry {
         private TDTMMode mode;
         
         /*
@@ -804,11 +839,32 @@ public class TDTMKCAP extends AbstractKCAP {
         private short jointId;
         private int qstmId;
         
+        
         public TDTMEntry(TDTMMode mode, byte transformType, short jointId, int qstmId) {
             this.mode = mode;
             this.transformType = transformType;
             this.jointId = jointId;
             this.qstmId = qstmId;
+        }
+        
+        public TDTMMode getMode()
+        {
+        	return mode;
+        }
+        
+        public byte getTransformType()
+        {
+        	return transformType;
+        }
+        
+        public short getjointId()
+        {
+        	return jointId;
+        }
+        
+        public int getqstmId()
+        {
+        	return qstmId;
         }
         
         public TDTMEntry(Access source) {
@@ -826,6 +882,7 @@ public class TDTMKCAP extends AbstractKCAP {
         }
     }
     
+
     enum TDTMMode {
         TRANSLATION,
         ROTATION,

@@ -141,9 +141,9 @@ public class VCTMPayload extends ResPayload {
         
         for (int i = 0; i < numEntries; i++) {
             // Convert key data to float16 bytes
-            short xVal = singleToHalf(keys.get(i).mValue().x());
-            short yVal = singleToHalf(keys.get(i).mValue().y());
-            short zVal = singleToHalf(keys.get(i).mValue().z());
+            short xVal =  Float.floatToFloat16(keys.get(i).mValue().x());
+            short yVal =  Float.floatToFloat16(keys.get(i).mValue().y());
+            short zVal =  Float.floatToFloat16(keys.get(i).mValue().z());
 
             byte[] xBytes = { (byte) (xVal), (byte) (xVal >> 8) };
             byte[] yBytes = { (byte) (yVal), (byte) (yVal >> 8) };
@@ -195,10 +195,10 @@ public class VCTMPayload extends ResPayload {
         
         for (int i = 0; i < numEntries; i++) {
             // Convert key data to float16 bytes
-            short xVal = singleToHalf(keys.get(i).mValue().x());
-            short yVal = singleToHalf(keys.get(i).mValue().y());
-            short zVal = singleToHalf(keys.get(i).mValue().z());
-            short wVal = singleToHalf(keys.get(i).mValue().w());
+            short xVal =  Float.floatToFloat16(keys.get(i).mValue().x());
+            short yVal =  Float.floatToFloat16(keys.get(i).mValue().y());
+            short zVal =  Float.floatToFloat16(keys.get(i).mValue().z());
+            short wVal =  Float.floatToFloat16(keys.get(i).mValue().w());
 
             byte[] xBytes = { (byte) (xVal), (byte) (xVal >> 8) };
             byte[] yBytes = { (byte) (yVal), (byte) (yVal >> 8) };
@@ -457,6 +457,11 @@ public class VCTMPayload extends ResPayload {
         }
     }
     
+    @SuppressWarnings("exports")
+	public ComponentType getComponentType() {
+        return componentType;
+    }
+    
     public InterpolationMode getInterpolationMode() {
         return interpolationMode;
     }
@@ -576,7 +581,7 @@ public class VCTMPayload extends ResPayload {
         UINT8;
     }
     
-    enum ComponentType {
+    public enum ComponentType {
         FLOAT32,
         FLOAT16,
         INT16,
