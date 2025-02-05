@@ -47,6 +47,7 @@ import org.lwjgl.assimp.AIAnimation;
 import org.lwjgl.assimp.AIBone;
 import org.lwjgl.assimp.AIColor4D;
 import org.lwjgl.assimp.AIFace;
+import org.lwjgl.assimp.AIMaterial;
 import org.lwjgl.assimp.AIMatrix4x4;
 import org.lwjgl.assimp.AIMesh;
 
@@ -54,11 +55,12 @@ import org.lwjgl.assimp.AINode;
 import org.lwjgl.assimp.AIPropertyStore;
 import org.lwjgl.assimp.AIQuaternion;
 import org.lwjgl.assimp.AIScene;
-
+import org.lwjgl.assimp.AIString;
 import org.lwjgl.assimp.AIVector3D;
 import org.lwjgl.assimp.AIVertexWeight;
 import org.lwjgl.assimp.Assimp;
 
+import de.javagl.jgltf.impl.v2.Material;
 import de.javagl.jgltf.model.GltfModel;
 
 import de.javagl.jgltf.model.io.GltfModelReader;
@@ -95,6 +97,7 @@ import net.digimonworld.decodetools.res.payload.xtvo.XTVOAttribute;
 import net.digimonworld.decodetools.res.payload.xtvo.XTVORegisterType;
 import net.digimonworld.decodetools.res.payload.xtvo.XTVOValueType;
 import net.digimonworld.decodetools.res.payload.xtvo.XTVOVertex;
+import net.digimonworld.decodetools.res.payload.hsem.HSEM07Entry;
 
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -496,6 +499,18 @@ public class ModelImporter extends PayloadPanel {
         return boneMapping;
     }
 
+    private static String getMaterialAlphaMode(AIMaterial material) {
+        AIString alphaModeString = AIString.calloc();
+        int result = Assimp.aiGetMaterialString(material, Assimp.AI_MATKEY_GLTF_ALPHAMODE, Assimp.aiTextureType_NONE, 0, alphaModeString);
+        
+        if (result == Assimp.aiReturn_SUCCESS) {
+            return alphaModeString.dataString(); // Possible values: "OPAQUE", "BLEND", "MASK"
+        } else {
+            return "OPAQUE"; // Default if not specified
+        }
+    }
+
+
     @SuppressWarnings("resource")
     public void loadModel() {
         List<XDIOPayload> xdioPayload = new ArrayList<>();
@@ -507,10 +522,25 @@ public class ModelImporter extends PayloadPanel {
         
         int materialId = -1;
         
+        byte blendFlag = 0x00;
+        byte maskFlag = 0x00;
+        
         for (int i = 0; i < scene.mNumMeshes(); i++) {
 
            AIMesh mesh = AIMesh.create(scene.mMeshes().get(i));
-
+           
+          
+           //get Material Properties
+           int materialIndex = mesh.mMaterialIndex();
+          
+           AIMaterial material = AIMaterial.create(scene.mMaterials().get(materialIndex));
+            String alphaMode = getMaterialAlphaMode(material);
+              
+               if ("BLEND".equalsIgnoreCase(alphaMode)) 
+                   blendFlag = 0x01; // Set first byte
+               if ("MASK".equalsIgnoreCase(alphaMode))
+                   maskFlag = 0x01;  // Set second byte
+               
            if (mesh.mMaterialIndex() != materialId) {
                hsemPayload.add(new HSEMMaterialEntry((short) 0, (short) mesh.mMaterialIndex()));
                HashMap<Short, Short> map = new HashMap<>();
@@ -637,6 +667,8 @@ public class ModelImporter extends PayloadPanel {
            hsemPayload.add(new HSEMDrawEntry((short) 4, (short) i, (short) i, (short) 0, 0, faces.size() * 3));
 
        }
+        
+        hsemPayload.add(new HSEM07Entry((short) 0x000F, (short) 0, (byte) blendFlag, (byte) maskFlag, (short) 0)); 
         float[] headerArray = rootKCAP.getHSEM().get(0).getHeaderData();
         HSEMPayload hsemEntry = new HSEMPayload(null, hsemPayload, -1, (short) 0, (byte) 0, (byte) 0, headerArray, 1, 0);
 
