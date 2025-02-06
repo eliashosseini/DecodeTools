@@ -106,23 +106,8 @@ public class VCTMPayload extends ResPayload {
         
         numEntries = keys.size();
 
-        coordSize = 2*3; // byte length of float16 values x 3
-        entrySize = 1; // byte length of time stamps
-        entriesStart = 0x20;
-        coordStart = entriesStart + entrySize * numEntries;
-        
-        interpolationMode = InterpolationMode.SPHERICAL_LINEAR;
-        
-        componentCount = 0x3;
-        componentType = ComponentType.FLOAT16;
-        
-        timeScale = TimeScale.EVERY_10_FRAMES;
-        timeType = TimeType.INT8;
-        
-        unk4 = 0;
-        unknown4 = 0;
-        unknown5 = 0;
-        
+        InitializeVCTM(3);
+
         data1 = new VCTMEntry[numEntries];
         data2 = new VCTMEntry[numEntries];
         
@@ -158,23 +143,8 @@ public class VCTMPayload extends ResPayload {
         
         numEntries = keys.size();
 
-        coordSize = 2*4; // byte length of float16 values x 4
-        entrySize = 1; // byte length of time stamps
-        entriesStart = 0x20;
-        coordStart = entriesStart + entrySize * numEntries;
-        
-        interpolationMode = InterpolationMode.SPHERICAL_LINEAR;
-        
-        componentCount = 0x4;
-        componentType = ComponentType.FLOAT16;
-        
-        timeScale = TimeScale.EVERY_10_FRAMES;
-        timeType = TimeType.INT8;
-        
-        unk4 = 0;
-        unknown4 = 0;
-        unknown5 = 0;
-        
+        InitializeVCTM(4);
+
         data1 = new VCTMEntry[numEntries];
         data2 = new VCTMEntry[numEntries];
         
@@ -189,6 +159,7 @@ public class VCTMPayload extends ResPayload {
         
         for (int i = 0; i < numEntries; i++) {
             // Convert key data to float16 bytes
+
             short xVal =  Float.floatToFloat16(keys.get(i).mValue().x());
             short yVal =  Float.floatToFloat16(keys.get(i).mValue().y());
             short zVal =  Float.floatToFloat16(keys.get(i).mValue().z());
@@ -204,6 +175,26 @@ public class VCTMPayload extends ResPayload {
             data2[i] = new VCTMEntry(allBytes);
         }
             
+    }
+
+    private void InitializeVCTM(int components) {
+        coordSize = (short)(2*components); // byte length of float16 values
+        entrySize = 1;
+        entriesStart = 0x20;
+        //coordStart = entriesStart + numEntries * entrySize;
+        coordStart = Utils.align(entriesStart + numEntries * entrySize, 0x4);
+        
+        interpolationMode = InterpolationMode.SPHERICAL_LINEAR;
+        
+        componentCount = (byte)(components & 0xff);
+        componentType = ComponentType.FLOAT16;
+        
+        timeScale = TimeScale.EVERY_10_FRAMES;
+        timeType = TimeType.INT8;
+        
+        unk4 = 0;
+        unknown4 = 0;
+        unknown5 = 0;
     }
 
     public static float roundToNearestHundred(float value) {

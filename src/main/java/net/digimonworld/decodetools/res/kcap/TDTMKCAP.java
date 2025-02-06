@@ -162,8 +162,16 @@ public class TDTMKCAP extends AbstractKCAP {
 
             if (nodeAnim.mNumPositionKeys() > 0) {
                 if (nodeAnim.mNumPositionKeys() < 2) {
+                    // Ignore (0, 0, 0) positions
                     if (posData.get(0).mValue().x() != 0 || posData.get(0).mValue().y() != 0 ||
                     posData.get(0).mValue().z() != 0) {
+                        positionQSTM = new QSTMPayload(this, posData.get(0));
+                        qstm.add(positionQSTM);
+                        tdtmEntry.add(new TDTMEntry(TDTMMode.TRANSLATION, (byte)0x10, jointId, qstmCount));
+                        qstmCount++;
+                    }
+                    // Unless it's joint 0
+                    else if (jointId == 0) {
                         positionQSTM = new QSTMPayload(this, posData.get(0));
                         qstm.add(positionQSTM);
                         tdtmEntry.add(new TDTMEntry(TDTMMode.TRANSLATION, (byte)0x10, jointId, qstmCount));
@@ -195,10 +203,14 @@ public class TDTMKCAP extends AbstractKCAP {
 
             if (nodeAnim.mNumRotationKeys() > 0) {
                 if (nodeAnim.mNumRotationKeys() < 2) {
-                    rotationQSTM = new QSTMPayload(this, rotData.get(0));
-                    qstm.add(rotationQSTM);
-                    tdtmEntry.add(new TDTMEntry(TDTMMode.ROTATION, (byte)0x10, jointId, qstmCount));
-                    qstmCount++;
+                    // Ignore (0, 0, 0, w) rotations
+                    if (rotData.get(0).mValue().x() != 0 || rotData.get(0).mValue().y() != 0 ||
+                    rotData.get(0).mValue().z() != 0) {
+                        rotationQSTM = new QSTMPayload(this, rotData.get(0));
+                        qstm.add(rotationQSTM);
+                        tdtmEntry.add(new TDTMEntry(TDTMMode.ROTATION, (byte)0x10, jointId, qstmCount));
+                        qstmCount++;
+                    }
                 }
                 else {
                     rotationQSTM = new QSTMPayload(this, vctmCount);
@@ -225,6 +237,7 @@ public class TDTMKCAP extends AbstractKCAP {
 
             if (nodeAnim.mNumScalingKeys() > 0) {
                 if (nodeAnim.mNumScalingKeys() < 2) {
+                    // Ignore (1, 1, 1) scales
                     if (scaData.get(0).mValue().x() != 1 || scaData.get(0).mValue().y() != 1 ||
                     scaData.get(0).mValue().z() != 1) {
                         scaleQSTM = new QSTMPayload(this, scaData.get(0));
