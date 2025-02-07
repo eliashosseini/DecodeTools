@@ -712,7 +712,7 @@ public class ModelImporter extends PayloadPanel {
             }
 
             if (index > -1 && index < 14) {
-                TDTMKCAP newTDTM = new TDTMKCAP(rootKCAP.getParent(), animation, jointNodes);
+                TDTMKCAP newTDTM = new TDTMKCAP(rootKCAP.getParent(), animation, jointNodes, (float)spinner.getValue());
 
                 if (index < tdtmKCAPs.size()) {
                     tdtmKCAPs.set(index, newTDTM);

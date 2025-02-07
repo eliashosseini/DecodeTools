@@ -99,7 +99,7 @@ public class VCTMPayload extends ResPayload {
     }
 
     // Position/Scale (3 Values)
-    public VCTMPayload(AbstractKCAP parent, List<AIVectorKey> keys, float duration) {
+    public VCTMPayload(AbstractKCAP parent, List<AIVectorKey> keys, float duration, float scale) {
         super(parent);
 
         //float realDuration = roundToNearestHundred((float) (duration / ticksPerSec * 333));
@@ -122,9 +122,9 @@ public class VCTMPayload extends ResPayload {
         
         for (int i = 0; i < numEntries; i++) {
             // Convert key data to float16 bytes
-            short xVal =  Float.floatToFloat16(keys.get(i).mValue().x());
-            short yVal =  Float.floatToFloat16(keys.get(i).mValue().y());
-            short zVal =  Float.floatToFloat16(keys.get(i).mValue().z());
+            short xVal =  Float.floatToFloat16(keys.get(i).mValue().x() * scale);
+            short yVal =  Float.floatToFloat16(keys.get(i).mValue().y() * scale);
+            short zVal =  Float.floatToFloat16(keys.get(i).mValue().z() * scale);
 
             byte[] xBytes = { (byte) (xVal), (byte) (xVal >> 8) };
             byte[] yBytes = { (byte) (yVal), (byte) (yVal >> 8) };
@@ -138,7 +138,7 @@ public class VCTMPayload extends ResPayload {
     }
 
     // Rotation
-    public VCTMPayload(AbstractKCAP parent, List<AIQuatKey> keys, float duration, boolean rotation) {
+    public VCTMPayload(AbstractKCAP parent, List<AIQuatKey> keys, float duration) {
         super(parent);
         
         numEntries = keys.size();

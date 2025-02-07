@@ -113,7 +113,7 @@ public class TDTMKCAP extends AbstractKCAP {
             Main.LOGGER.warning(() -> "Final position for TDTM KCAP does not match the header. Current: " + source.getPosition() + " Expected: " + expectedEnd);
     }
 
-    public TDTMKCAP(AbstractKCAP parent, AIAnimation animation, List<AINode> nodes) {
+    public TDTMKCAP(AbstractKCAP parent, AIAnimation animation, List<AINode> nodes, float scaleFactor) {
         super(parent, 0);
 
         float duration = roundToNearestHundred((float) (animation.mDuration() / animation.mTicksPerSecond() * 333));
@@ -184,7 +184,7 @@ public class TDTMKCAP extends AbstractKCAP {
                     tdtmEntry.add(new TDTMEntry(TDTMMode.TRANSLATION, (byte)0x10, jointId, qstmCount));
                     qstmCount++;
 
-                    positionVCTM = new VCTMPayload(this, posData, (float)animation.mDuration());
+                    positionVCTM = new VCTMPayload(this, posData, (float)animation.mDuration(), scaleFactor);
                     vctm.add(positionVCTM);
                     vctmCount++;
                 }
@@ -218,7 +218,7 @@ public class TDTMKCAP extends AbstractKCAP {
                     tdtmEntry.add(new TDTMEntry(TDTMMode.ROTATION, (byte)0x10, jointId, qstmCount));
                     qstmCount++;
 
-                    rotationVCTM = new VCTMPayload(this, rotData, (float)animation.mDuration(), true);
+                    rotationVCTM = new VCTMPayload(this, rotData, (float)animation.mDuration());
                     vctm.add(rotationVCTM);
                     vctmCount++;
                 }
@@ -252,7 +252,7 @@ public class TDTMKCAP extends AbstractKCAP {
                     tdtmEntry.add(new TDTMEntry(TDTMMode.SCALE, (byte)0x10, jointId, qstmCount));
                     qstmCount++;
 
-                    scaleVCTM = new VCTMPayload(this, scaData, (float)animation.mDuration());
+                    scaleVCTM = new VCTMPayload(this, scaData, (float)animation.mDuration(), 1);
                     vctm.add(scaleVCTM);
                     vctmCount++;
                 }
