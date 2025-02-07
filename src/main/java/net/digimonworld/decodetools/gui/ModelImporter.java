@@ -515,7 +515,8 @@ public class ModelImporter extends PayloadPanel {
     public void loadModel() {
         List<XDIOPayload> xdioPayload = new ArrayList<>();
         List<XTVOPayload> xtvoPayload = new ArrayList<>();
-        List<TNOJPayload> tnoj = loadJoints((float) spinner.getValue(), scene);
+        //List<TNOJPayload> tnoj = loadJoints((float) spinner.getValue(), scene);
+        List<TNOJPayload> tnoj = loadJoints(1, scene);
         List<HSEMEntry> hsemPayload = new ArrayList<>();
                   
         Map<Short, Short> previousBoneMapping = new HashMap<>(); 
@@ -569,9 +570,12 @@ public class ModelImporter extends PayloadPanel {
 
             short offsetCounter = 0;
 
+            //float scale = (float) spinner.getValue();
+            float scale = 1;
+
             XTVOAttribute vertexAttrib = new XTVOAttribute(XTVORegisterType.POSITION, offsetCounter, (byte) 3,
                                                            XTVOValueType.SHORT,
-                                                           1.0f / (vertexScale / (float) spinner.getValue()));
+                                                           1.0f / (vertexScale / scale));
             offsetCounter += 6;
             XTVOAttribute normalAttrib = new XTVOAttribute(XTVORegisterType.NORMAL, offsetCounter, (byte) 3,
                                                            XTVOValueType.BYTE, 1.0f / 127f);

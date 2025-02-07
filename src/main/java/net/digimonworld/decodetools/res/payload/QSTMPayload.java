@@ -73,6 +73,16 @@ public class QSTMPayload extends ResPayload {
 
         entries.add(qstmEntry);
     }
+
+    public QSTMPayload(AbstractKCAP parent, List<Float> vals) {
+        super(parent);
+
+        unknown1 = 2; // Figure out what this value means?
+
+        QSTMEntry qstmEntry = new QSTM00Entry(vals);
+
+        entries.add(qstmEntry);
+    }
     
     public short getUnknown1() {
         return unknown1;

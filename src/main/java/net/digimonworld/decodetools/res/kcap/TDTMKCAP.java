@@ -184,7 +184,7 @@ public class TDTMKCAP extends AbstractKCAP {
                     tdtmEntry.add(new TDTMEntry(TDTMMode.TRANSLATION, (byte)0x10, jointId, qstmCount));
                     qstmCount++;
 
-                    positionVCTM = new VCTMPayload(this, posData, (float)animation.mDuration(), scaleFactor);
+                    positionVCTM = new VCTMPayload(this, posData, (float)animation.mDuration(), 1);
                     vctm.add(positionVCTM);
                     vctmCount++;
                 }
@@ -235,7 +235,17 @@ public class TDTMKCAP extends AbstractKCAP {
             QSTMPayload scaleQSTM = null;
             VCTMPayload scaleVCTM = null;
 
-            if (nodeAnim.mNumScalingKeys() > 0) {
+            if (jointId == 0) {
+                List<Float> scales = new ArrayList<Float>();
+                for (int j = 0; j < 3; j++) {
+                    scales.add(scaleFactor);
+                }
+                scaleQSTM = new QSTMPayload(this, scales);
+                qstm.add(scaleQSTM);
+                tdtmEntry.add(new TDTMEntry(TDTMMode.LOCAL_SCALE, (byte)0x10, jointId, qstmCount));
+                qstmCount++;
+            }
+            else if (nodeAnim.mNumScalingKeys() > 0) {
                 if (nodeAnim.mNumScalingKeys() < 2) {
                     // Ignore (1, 1, 1) scales
                     if (scaData.get(0).mValue().x() != 1 || scaData.get(0).mValue().y() != 1 ||
