@@ -274,24 +274,7 @@ public class ModelImporter extends PayloadPanel {
                     return;
                 }
 
-                jointNodes = nodeList(scene.mRootNode());
-                // automatically sort the joints based on best guess
-                if (!jointNodes.isEmpty()) {
-                    List<ResPayload> rootTNOJ = ModelImporter.this.rootKCAP.getTNOJ().getEntries();
-
-                    for (int i = rootTNOJ.size() - 1; i >= 0; i--) {
-                        String name = ((TNOJPayload) rootTNOJ.get(i)).getName();
-
-                        for (int j = 0; j < jointNodes.size(); j++) {
-                            AINode node = jointNodes.get(j);
-                            if (node.mName().dataString().equalsIgnoreCase(name)) {
-                                jointNodes.remove(j);
-                                jointNodes.add(0, node);
-                                break;
-                            }
-                        }
-                    }
-                }
+                jointNodes = extractJointNodes(scene.mRootNode());  // Use a method that respects GLTF order
                 float scale = calculateModelScale();
                 spinner.setValue(scale);
 
@@ -671,8 +654,8 @@ public class ModelImporter extends PayloadPanel {
            hsemPayload.add(new HSEMDrawEntry((short) 4, (short) i, (short) i, (short) 0, 0, faces.size() * 3));
 
        }
-        
-        hsemPayload.add(new HSEM07Entry((short) 0x000F, (short) 0, (byte) blendFlag, (byte) maskFlag, (short) 0)); 
+        hsemPayload.add(new HSEM07Entry((short) 0x000F, (short) 0,(byte) blendFlag, (byte) maskFlag,(short) 0));
+
         float[] headerArray = rootKCAP.getHSEM().get(0).getHeaderData();
         HSEMPayload hsemEntry = new HSEMPayload(null, hsemPayload, -1, (short) 0, (byte) 0, (byte) 0, headerArray, 1, 0);
 
@@ -799,10 +782,8 @@ public class ModelImporter extends PayloadPanel {
     private static boolean isJointNode(AINode node) {
         if (node == null)
             return false;
-
         String name = node.mName().dataString();
-
-        return name.startsWith("J_") || name.startsWith("loc_") || name.startsWith("AT_");
+        return name.startsWith("J_") || name.startsWith("AT_");
     }
 
     @SuppressWarnings("resource")
@@ -836,7 +817,7 @@ public class ModelImporter extends PayloadPanel {
         // Process each node to load joints and their corresponding bone matrices
         for (AINode nodes : jointNodes) {
             String name = nodes.mName().dataString();
-            System.out.print(name);
+
 
             if (!name.startsWith(JOINT_PREFIXES[0]) && !name.startsWith(JOINT_PREFIXES[1]))
                 continue;
@@ -876,6 +857,21 @@ public class ModelImporter extends PayloadPanel {
         }
 
         return tnojList;
+    }
+
+    private static List<AINode> extractJointNodes(AINode root) {
+        List<AINode> orderedJoints = new ArrayList<>();
+        traverseNodes(root, orderedJoints);
+        return orderedJoints;
+    }
+
+    private static void traverseNodes(AINode node, List<AINode> jointList) {
+        if (isJointNode(node)) { // Keep only actual joint nodes
+            jointList.add(node);
+        }
+        for (int i = 0; i < node.mNumChildren(); i++) {
+            traverseNodes(AINode.create(node.mChildren().get(i)), jointList);
+        }
     }
 
     

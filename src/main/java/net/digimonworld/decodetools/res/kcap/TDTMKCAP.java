@@ -116,12 +116,8 @@ public class TDTMKCAP extends AbstractKCAP {
     public TDTMKCAP(AbstractKCAP parent, AIAnimation animation, List<AINode> nodes, float scaleFactor) {
         super(parent, 0);
 
-        float duration = roundToNearestHundred((float) (animation.mDuration() / animation.mTicksPerSecond() * 333));
-
-        time1 = 0;
-        time2 = duration;
-        time3 = 0;
-        time4 = duration;
+        float endTime = 0;
+        float startTime = Math.round((float) ((animation.mDuration() * 333) / animation.mTicksPerSecond()));
 
         int vctmCount = 0;
         int qstmCount = 0;
@@ -154,14 +150,22 @@ public class TDTMKCAP extends AbstractKCAP {
             for (int j = 0; j < nodeAnim.mNumPositionKeys(); j++) {
                 AIVectorKey key = positionKeys.get(j);
                 posData.add(key);
+
                 //System.out.println("Time: " + key.mTime() + ", Position: " + key.mValue().x() + ", " + key.mValue().y() + ", " + key.mValue().z());
+            }
+
+            // check for identical first and last key
+            if (posData.get(0).mValue().x() == posData.get(posData.size()-1).mValue().x() &&
+            posData.get(0).mValue().y() == posData.get(posData.size()-1).mValue().y() &&
+            posData.get(0).mValue().z() == posData.get(posData.size()-1).mValue().z()) {
+                posData.removeLast();
             }
 
             QSTMPayload positionQSTM = null;
             VCTMPayload positionVCTM = null;
 
-            if (nodeAnim.mNumPositionKeys() > 0) {
-                if (nodeAnim.mNumPositionKeys() < 2) {
+            if (posData.size() > 0) {
+                if (posData.size() < 2) {
                     // Ignore (0, 0, 0) positions
                     if (posData.get(0).mValue().x() != 0 || posData.get(0).mValue().y() != 0 ||
                     posData.get(0).mValue().z() != 0) {
@@ -184,12 +188,12 @@ public class TDTMKCAP extends AbstractKCAP {
                     tdtmEntry.add(new TDTMEntry(TDTMMode.TRANSLATION, (byte)0x10, jointId, qstmCount));
                     qstmCount++;
 
-                    positionVCTM = new VCTMPayload(this, posData, (float)animation.mDuration(), 1);
+                    positionVCTM = new VCTMPayload(this, posData, (float)animation.mTicksPerSecond(), 1);
                     vctm.add(positionVCTM);
                     vctmCount++;
                 }
             }
-            
+
             //get Rotation Keyframes
             AIQuatKey.Buffer rotationKeys = nodeAnim.mRotationKeys();
             for (int j = 0; j < nodeAnim.mNumRotationKeys(); j++) {
@@ -198,11 +202,18 @@ public class TDTMKCAP extends AbstractKCAP {
                 //System.out.println("Time: " + key.mTime() + ", Rotation: " + key.mValue().x() + ", " + key.mValue().y() + ", " + key.mValue().z() + ", " + key.mValue().w());
             }
 
+            // check for identical first and last key
+            if (rotData.get(0).mValue().x() == rotData.get(rotData.size()-1).mValue().x() &&
+            rotData.get(0).mValue().y() == rotData.get(rotData.size()-1).mValue().y() &&
+            rotData.get(0).mValue().z() == rotData.get(rotData.size()-1).mValue().z()) {
+                rotData.removeLast();
+            }
+
             QSTMPayload rotationQSTM = null;
             VCTMPayload rotationVCTM = null;
 
-            if (nodeAnim.mNumRotationKeys() > 0) {
-                if (nodeAnim.mNumRotationKeys() < 2) {
+            if (rotData.size() > 0) {
+                if (rotData.size() < 2) {
                     // Ignore (0, 0, 0, w) rotations
                     if (rotData.get(0).mValue().x() != 0 || rotData.get(0).mValue().y() != 0 ||
                     rotData.get(0).mValue().z() != 0) {
@@ -218,7 +229,7 @@ public class TDTMKCAP extends AbstractKCAP {
                     tdtmEntry.add(new TDTMEntry(TDTMMode.ROTATION, (byte)0x10, jointId, qstmCount));
                     qstmCount++;
 
-                    rotationVCTM = new VCTMPayload(this, rotData, (float)animation.mDuration());
+                    rotationVCTM = new VCTMPayload(this, rotData, (float)animation.mTicksPerSecond());
                     vctm.add(rotationVCTM);
                     vctmCount++;
                 }
@@ -231,6 +242,14 @@ public class TDTMKCAP extends AbstractKCAP {
                 scaData.add(key);
                 //System.out.println("Time: " + key.mTime() + ", Scale: " + key.mValue().x() + ", " + key.mValue().y() + ", " + key.mValue().z());
             }
+
+            // check for identical first and last key
+            if (scaData.get(0).mValue().x() == scaData.get(scaData.size()-1).mValue().x() &&
+            scaData.get(0).mValue().y() == scaData.get(scaData.size()-1).mValue().y() &&
+            scaData.get(0).mValue().z() == scaData.get(scaData.size()-1).mValue().z()) {
+                scaData.removeLast();
+            }
+            
 
             QSTMPayload scaleQSTM = null;
             VCTMPayload scaleVCTM = null;
@@ -245,8 +264,8 @@ public class TDTMKCAP extends AbstractKCAP {
                 tdtmEntry.add(new TDTMEntry(TDTMMode.LOCAL_SCALE, (byte)0x10, jointId, qstmCount));
                 qstmCount++;
             }
-            else if (nodeAnim.mNumScalingKeys() > 0) {
-                if (nodeAnim.mNumScalingKeys() < 2) {
+            else if (scaData.size() > 0) {
+                if (scaData.size() < 2) {
                     // Ignore (1, 1, 1) scales
                     if (scaData.get(0).mValue().x() != 1 || scaData.get(0).mValue().y() != 1 ||
                     scaData.get(0).mValue().z() != 1) {
@@ -262,12 +281,28 @@ public class TDTMKCAP extends AbstractKCAP {
                     tdtmEntry.add(new TDTMEntry(TDTMMode.SCALE, (byte)0x10, jointId, qstmCount));
                     qstmCount++;
 
-                    scaleVCTM = new VCTMPayload(this, scaData, (float)animation.mDuration(), 1);
+                    scaleVCTM = new VCTMPayload(this, scaData, (float)animation.mTicksPerSecond(), 1);
                     vctm.add(scaleVCTM);
                     vctmCount++;
                 }
             }
+
+            // get lowest time from each data set
+            startTime = Math.min(startTime, Math.round((float) ((posData.get(0).mTime() * 333) / animation.mTicksPerSecond())));
+            startTime = Math.min(startTime, Math.round((float) ((rotData.get(0).mTime() * 333) / animation.mTicksPerSecond())));
+            startTime = Math.min(startTime, Math.round((float) ((scaData.get(0).mTime() * 333) / animation.mTicksPerSecond())));
+            
+            // get highest time from each data set
+            endTime = Math.max(endTime, Math.round((float) ((posData.get(posData.size()-1).mTime() * 333) / animation.mTicksPerSecond())));
+            endTime = Math.max(endTime, Math.round((float) ((rotData.get(rotData.size()-1).mTime() * 333) / animation.mTicksPerSecond())));
+            endTime = Math.max(endTime, Math.round((float) ((scaData.get(scaData.size()-1).mTime() * 333) / animation.mTicksPerSecond())));
+             
         }
+
+        time1 = startTime;
+        time2 = endTime;
+        time3 = startTime;
+        time4 = endTime;
     }
 
     public static float roundToNearestHundred(float value) {
