@@ -154,28 +154,17 @@ public class TDTMKCAP extends AbstractKCAP {
                 //System.out.println("Time: " + key.mTime() + ", Position: " + key.mValue().x() + ", " + key.mValue().y() + ", " + key.mValue().z());
             }
 
-            // check for identical first and last key
-            if (posData.get(0).mValue().x() == posData.get(posData.size()-1).mValue().x() &&
-            posData.get(0).mValue().y() == posData.get(posData.size()-1).mValue().y() &&
-            posData.get(0).mValue().z() == posData.get(posData.size()-1).mValue().z()) {
-                posData.removeLast();
-            }
+            // // check for identical first and last key
+            // if (posData.get(0).mValue().x() == posData.get(posData.size()-1).mValue().x() &&
+            // posData.get(0).mValue().y() == posData.get(posData.size()-1).mValue().y() &&
+            // posData.get(0).mValue().z() == posData.get(posData.size()-1).mValue().z()) {
+            //     posData.removeLast();
+            // }
 
             QSTMPayload positionQSTM = null;
             VCTMPayload positionVCTM = null;
 
-            if (jointId == 0) {
-                List<Float> newPos = new ArrayList<Float>();
-                newPos.add(posData.get(0).mValue().x() / scaleFactor);
-                newPos.add(posData.get(0).mValue().y() / scaleFactor);
-                newPos.add(posData.get(0).mValue().z() / scaleFactor);
-
-                positionQSTM = new QSTMPayload(this, newPos);
-                qstm.add(positionQSTM);
-                tdtmEntry.add(new TDTMEntry(TDTMMode.TRANSLATION, (byte)0x10, jointId, qstmCount));
-                qstmCount++;
-            }
-            else if (posData.size() > 0) {
+            if (posData.size() > 0) {
                 if (posData.size() < 2) {
                     // Ignore (0, 0, 0) positions
                     if (posData.get(0).mValue().x() != 0 || posData.get(0).mValue().y() != 0 ||
@@ -185,13 +174,6 @@ public class TDTMKCAP extends AbstractKCAP {
                         tdtmEntry.add(new TDTMEntry(TDTMMode.TRANSLATION, (byte)0x10, jointId, qstmCount));
                         qstmCount++;
                     }
-                    // Unless it's joint 0
-                    // else if (jointId == 0) {
-                    //     positionQSTM = new QSTMPayload(this, posData.get(0));
-                    //     qstm.add(positionQSTM);
-                    //     tdtmEntry.add(new TDTMEntry(TDTMMode.TRANSLATION, (byte)0x10, jointId, qstmCount));
-                    //     qstmCount++;
-                    // }
                 }
                 else {
                     positionQSTM = new QSTMPayload(this, vctmCount);
@@ -213,12 +195,12 @@ public class TDTMKCAP extends AbstractKCAP {
                 //System.out.println("Time: " + key.mTime() + ", Rotation: " + key.mValue().x() + ", " + key.mValue().y() + ", " + key.mValue().z() + ", " + key.mValue().w());
             }
 
-            // check for identical first and last key
-            if (rotData.get(0).mValue().x() == rotData.get(rotData.size()-1).mValue().x() &&
-            rotData.get(0).mValue().y() == rotData.get(rotData.size()-1).mValue().y() &&
-            rotData.get(0).mValue().z() == rotData.get(rotData.size()-1).mValue().z()) {
-                rotData.removeLast();
-            }
+            // // check for identical first and last key
+            // if (rotData.get(0).mValue().x() == rotData.get(rotData.size()-1).mValue().x() &&
+            // rotData.get(0).mValue().y() == rotData.get(rotData.size()-1).mValue().y() &&
+            // rotData.get(0).mValue().z() == rotData.get(rotData.size()-1).mValue().z()) {
+            //     rotData.removeLast();
+            // }
 
             QSTMPayload rotationQSTM = null;
             VCTMPayload rotationVCTM = null;
@@ -254,12 +236,12 @@ public class TDTMKCAP extends AbstractKCAP {
                 //System.out.println("Time: " + key.mTime() + ", Scale: " + key.mValue().x() + ", " + key.mValue().y() + ", " + key.mValue().z());
             }
 
-            // check for identical first and last key
-            if (scaData.get(0).mValue().x() == scaData.get(scaData.size()-1).mValue().x() &&
-            scaData.get(0).mValue().y() == scaData.get(scaData.size()-1).mValue().y() &&
-            scaData.get(0).mValue().z() == scaData.get(scaData.size()-1).mValue().z()) {
-                scaData.removeLast();
-            }
+            // // check for identical first and last key
+            // if (scaData.get(0).mValue().x() == scaData.get(scaData.size()-1).mValue().x() &&
+            // scaData.get(0).mValue().y() == scaData.get(scaData.size()-1).mValue().y() &&
+            // scaData.get(0).mValue().z() == scaData.get(scaData.size()-1).mValue().z()) {
+            //     scaData.removeLast();
+            // }
             
 
             QSTMPayload scaleQSTM = null;
@@ -311,9 +293,9 @@ public class TDTMKCAP extends AbstractKCAP {
         }
 
         time1 = startTime;
-        time2 = endTime;
+        time2 = endTime + startTime;
         time3 = startTime;
-        time4 = endTime;
+        time4 = endTime + startTime;
     }
 
     public static float roundToNearestHundred(float value) {

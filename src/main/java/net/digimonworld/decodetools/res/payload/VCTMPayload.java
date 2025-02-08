@@ -189,6 +189,7 @@ public class VCTMPayload extends ResPayload {
         }
         else if (components == 4) {
             interpolationMode = InterpolationMode.LINEAR_4D;
+            //interpolationMode = InterpolationMode.SPHERICAL_LINEAR;
         }
         else {
             interpolationMode = InterpolationMode.LINEAR_1D;
