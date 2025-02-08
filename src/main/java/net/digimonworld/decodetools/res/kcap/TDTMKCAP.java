@@ -164,7 +164,18 @@ public class TDTMKCAP extends AbstractKCAP {
             QSTMPayload positionQSTM = null;
             VCTMPayload positionVCTM = null;
 
-            if (posData.size() > 0) {
+            if (jointId == 0) {
+                List<Float> newPos = new ArrayList<Float>();
+                newPos.add(posData.get(0).mValue().x() / scaleFactor);
+                newPos.add(posData.get(0).mValue().y() / scaleFactor);
+                newPos.add(posData.get(0).mValue().z() / scaleFactor);
+
+                positionQSTM = new QSTMPayload(this, newPos);
+                qstm.add(positionQSTM);
+                tdtmEntry.add(new TDTMEntry(TDTMMode.TRANSLATION, (byte)0x10, jointId, qstmCount));
+                qstmCount++;
+            }
+            else if (posData.size() > 0) {
                 if (posData.size() < 2) {
                     // Ignore (0, 0, 0) positions
                     if (posData.get(0).mValue().x() != 0 || posData.get(0).mValue().y() != 0 ||
@@ -175,12 +186,12 @@ public class TDTMKCAP extends AbstractKCAP {
                         qstmCount++;
                     }
                     // Unless it's joint 0
-                    else if (jointId == 0) {
-                        positionQSTM = new QSTMPayload(this, posData.get(0));
-                        qstm.add(positionQSTM);
-                        tdtmEntry.add(new TDTMEntry(TDTMMode.TRANSLATION, (byte)0x10, jointId, qstmCount));
-                        qstmCount++;
-                    }
+                    // else if (jointId == 0) {
+                    //     positionQSTM = new QSTMPayload(this, posData.get(0));
+                    //     qstm.add(positionQSTM);
+                    //     tdtmEntry.add(new TDTMEntry(TDTMMode.TRANSLATION, (byte)0x10, jointId, qstmCount));
+                    //     qstmCount++;
+                    // }
                 }
                 else {
                     positionQSTM = new QSTMPayload(this, vctmCount);
