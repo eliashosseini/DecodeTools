@@ -20,7 +20,7 @@ public class QSTMPayload extends ResPayload {
     
     private List<QSTMEntry> entries = new ArrayList<>();
 
-    private short unkDefault = 4;
+    private short unkDefault = 2;
     
     public QSTMPayload(Access source, int dataStart, AbstractKCAP parent, int size, String name) {
         super(parent);
