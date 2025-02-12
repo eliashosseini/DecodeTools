@@ -1,152 +1,306 @@
 package net.digimonworld.decodetools.gui;
 
+import javax.swing.*;
 import javax.swing.GroupLayout;
 import javax.swing.GroupLayout.Alignment;
-import javax.swing.JComboBox;
-import javax.swing.JLabel;
 import javax.swing.LayoutStyle.ComponentPlacement;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 
 import net.digimonworld.decodetools.gui.util.JHexSpinner;
 import net.digimonworld.decodetools.res.payload.LRTMPayload;
 import net.digimonworld.decodetools.res.payload.LRTMPayload.LRTMShadingType;
 import net.digimonworld.decodetools.res.payload.LRTMPayload.LRTMUnkownType;
-
-import javax.swing.DefaultComboBoxModel;
+import javax.swing.plaf.basic.BasicSliderUI;
+import java.awt.*;
 
 public class LRTMPanel extends PayloadPanel {
-    
+    private static final long serialVersionUID = 1L;
+
     private LRTMPayload selectedLRTM;
-    
+
     private final JComboBox<LRTMShadingType> shadingSelector = new JComboBox<>();
     private final JComboBox<LRTMUnkownType> unk1Selector = new JComboBox<>();
-    private final JHexSpinner filterSpinner = new JHexSpinner();
-    private final JHexSpinner ambientSpinner = new JHexSpinner();
-    private final JHexSpinner specularSpinner = new JHexSpinner();
-    private final JHexSpinner emitSpinner = new JHexSpinner();
-    private final JHexSpinner unk2Spinner = new JHexSpinner();
-    private final JHexSpinner unk3Spinner = new JHexSpinner();
+    private final JSlider ambientSlider = createStyledSlider();
+    private final JSlider specularSlider = createStyledSlider();
+    private final JSlider emitSlider = createStyledSlider(); // Emit Slider
     private final JLabel shadingLabel = new JLabel("Shading:");
-    private final JLabel unk1Label = new JLabel("Unk1:");
-    private final JLabel filterLabel = new JLabel("Filter:");
     private final JLabel ambientLabel = new JLabel("Ambient:");
-    private final JLabel specularLabel = new JLabel("Specular:");
+    private final JLabel specularLabel = new JLabel("Diffusion:");
     private final JLabel emitLabel = new JLabel("Emit:");
-    private final JLabel unk2Label = new JLabel("Unk2:");
-    private final JLabel unk3Label = new JLabel("Unk3:");
+    private final JLabel unk1Label = new JLabel("Fragment Lightning:");
+ 
+    private final JLabel unk2Label = new JLabel("Specular0:");
+    private final JLabel unk3Label = new JLabel("Specular1:");
+    private final JSlider spec0Slider =createStyledSlider();
+    private final JSlider spec1Slider= createStyledSlider();
+    
+    private final JLabel filterLabel = new JLabel("Filter:");
+    private final JHexSpinner filterSpinner = new JHexSpinner();
+    private final JTextField ambientValueLabel = new JTextField("0"); // Display normalized ambient value
+    private final JTextField specularValueLabel = new JTextField("0"); // Display normalized specular value
+    private final JTextField  emitValueLabel = new JTextField ("0"); // Display normalized emit value
+    private final JTextField spec0ValueLabel = new JTextField("0");
+    private final JTextField spec1ValueLabel = new JTextField("0");
     
     public LRTMPanel(Object selected) {
         setSelectedFile(selected);
-        
+
         shadingLabel.setLabelFor(shadingSelector);
-        unk1Label.setLabelFor(unk1Selector);
-        filterLabel.setLabelFor(filterSpinner);
-        unk3Label.setLabelFor(unk3Spinner);
-        unk2Label.setLabelFor(unk2Spinner);
-        emitLabel.setLabelFor(emitSpinner);
-        specularLabel.setLabelFor(specularSpinner);
-        ambientLabel.setLabelFor(ambientSpinner);
+        ambientLabel.setLabelFor(ambientSlider);
+        specularLabel.setLabelFor(specularSlider);
+        emitLabel.setLabelFor(emitSlider);
+
         
+        // Spec0 Slider Listener
+        spec0Slider.addChangeListener(e -> {
+            if (selectedLRTM != null) {
+                float normalizedValue = spec0Slider.getValue() / 1000.0f;
+                int packedColor = denormalizeSliderToRGBA(normalizedValue);
+                selectedLRTM.setColor4(packedColor);
+                spec0ValueLabel.setText(String.format("%.3f", normalizedValue)); // Update display
+            }
+        });
+
+        // Spec1 Slider Listener
+        spec1Slider.addChangeListener(e -> {
+            if (selectedLRTM != null) {
+                float normalizedValue = spec1Slider.getValue() / 1000.0f;
+                int packedColor = denormalizeSliderToRGBA(normalizedValue);
+                selectedLRTM.setColor5(packedColor);
+                spec1ValueLabel.setText(String.format("%.3f", normalizedValue)); // Update display
+            }
+        });
+        
+        // Ambient Slider Listener
+        ambientSlider.addChangeListener(e -> {
+            if (selectedLRTM != null) {
+                float normalizedValue = ambientSlider.getValue() / 1000.0f; // Slider value (0.0 to 1.0)
+                int packedColor = denormalizeSliderToRGBA(normalizedValue); // Convert normalized value to packed RGBA
+                selectedLRTM.setColor1(packedColor); // Update payload
+                ambientValueLabel.setText(String.format("%.3f", normalizedValue)); // Update display label
+            }
+        });
+
+        // Diffusion Slider Listener
+        specularSlider.addChangeListener(e -> {
+            if (selectedLRTM != null) {
+                float normalizedValue = specularSlider.getValue() / 1000.0f; // Slider value (0.0 to 1.0)
+                int packedColor = denormalizeSliderToRGBA(normalizedValue); // Convert normalized value to packed RGBA
+                selectedLRTM.setColor2(packedColor); // Update payload
+                specularValueLabel.setText(String.format("%.3f", normalizedValue)); // Update display label
+            }
+        });
+
+        // Emit Slider Listener
+        emitSlider.addChangeListener(e -> {
+            if (selectedLRTM != null) {
+                float normalizedValue = emitSlider.getValue() / 1000.0f; // Slider value (0.0 to 1.0)
+                int packedRGB = denormalizeSliderToRGB(normalizedValue); // Convert normalized value to packed RGB
+                int packedARGB = (0xFF << 24) | packedRGB; // Ensure Alpha remains 255
+                selectedLRTM.setColor3(packedARGB); // Update payload
+                emitValueLabel.setText(String.format("%.3f", normalizedValue)); // Update display label
+            }
+        });
+
         filterSpinner.addChangeListener(a -> selectedLRTM.setColorFilter(((Long) filterSpinner.getValue()).intValue()));
-        ambientSpinner.addChangeListener(a -> selectedLRTM.setColor1(((Long) ambientSpinner.getValue()).intValue()));
-        specularSpinner.addChangeListener(a -> selectedLRTM.setColor2(((Long) specularSpinner.getValue()).intValue()));
-        emitSpinner.addChangeListener(a -> selectedLRTM.setColor3(((Long) emitSpinner.getValue()).intValue()));
-        unk2Spinner.addChangeListener(a -> selectedLRTM.setColor4(((Long) unk2Spinner.getValue()).intValue()));
-        unk3Spinner.addChangeListener(a -> selectedLRTM.setColor5(((Long) unk3Spinner.getValue()).intValue()));
-        
         shadingSelector.addItemListener(a -> selectedLRTM.setShadingType((LRTMShadingType) a.getItem()));
-        unk1Selector.addItemListener(a -> selectedLRTM.setUnknownType((LRTMUnkownType) a.getItem()));
         
+
         GroupLayout groupLayout = new GroupLayout(this);
+        groupLayout.setAutoCreateGaps(true); // Adds consistent gaps
+        groupLayout.setAutoCreateContainerGaps(true); // Adds margins
+
         groupLayout.setHorizontalGroup(
-            groupLayout.createParallelGroup(Alignment.LEADING)
-                .addGroup(groupLayout.createSequentialGroup()
-                    .addContainerGap()
-                    .addGroup(groupLayout.createParallelGroup(Alignment.LEADING)
-                        .addGroup(groupLayout.createSequentialGroup()
-                            .addGroup(groupLayout.createParallelGroup(Alignment.LEADING)
-                                .addGroup(groupLayout.createSequentialGroup()
-                                    .addComponent(ambientLabel)
-                                    .addPreferredGap(ComponentPlacement.RELATED)
-                                    .addComponent(ambientSpinner, GroupLayout.PREFERRED_SIZE, 90, GroupLayout.PREFERRED_SIZE)
-                                    .addPreferredGap(ComponentPlacement.UNRELATED)
-                                    .addComponent(specularLabel))
-                                .addGroup(groupLayout.createSequentialGroup()
-                                    .addComponent(unk2Label)
-                                    .addGap(18)
-                                    .addComponent(unk2Spinner, GroupLayout.PREFERRED_SIZE, 90, GroupLayout.PREFERRED_SIZE)
-                                    .addGap(10)
-                                    .addComponent(unk3Label)))
-                            .addPreferredGap(ComponentPlacement.RELATED)
-                            .addGroup(groupLayout.createParallelGroup(Alignment.LEADING)
-                                .addComponent(unk3Spinner, GroupLayout.PREFERRED_SIZE, 90, GroupLayout.PREFERRED_SIZE)
-                                .addGroup(groupLayout.createSequentialGroup()
-                                    .addComponent(specularSpinner, GroupLayout.PREFERRED_SIZE, 90, GroupLayout.PREFERRED_SIZE)
-                                    .addPreferredGap(ComponentPlacement.UNRELATED)
-                                    .addComponent(emitLabel)
-                                    .addPreferredGap(ComponentPlacement.RELATED)
-                                    .addComponent(emitSpinner, GroupLayout.PREFERRED_SIZE, 90, GroupLayout.PREFERRED_SIZE))))
-                        .addGroup(groupLayout.createSequentialGroup()
-                            .addComponent(shadingLabel)
-                            .addPreferredGap(ComponentPlacement.RELATED)
-                            .addComponent(shadingSelector, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
-                            .addPreferredGap(ComponentPlacement.UNRELATED)
-                            .addComponent(unk1Label)
-                            .addPreferredGap(ComponentPlacement.RELATED)
-                            .addComponent(unk1Selector, GroupLayout.PREFERRED_SIZE, 60, GroupLayout.PREFERRED_SIZE)
-                            .addPreferredGap(ComponentPlacement.UNRELATED)
-                            .addComponent(filterLabel)
-                            .addPreferredGap(ComponentPlacement.UNRELATED)
-                            .addComponent(filterSpinner, GroupLayout.PREFERRED_SIZE, 90, GroupLayout.PREFERRED_SIZE)))
-                    .addContainerGap(26, Short.MAX_VALUE))
-        );
-        groupLayout.setVerticalGroup(
-            groupLayout.createParallelGroup(Alignment.LEADING)
-                .addGroup(groupLayout.createSequentialGroup()
-                    .addContainerGap()
+                groupLayout.createParallelGroup(Alignment.LEADING)
+                    .addGroup(groupLayout.createSequentialGroup()
+                        .addComponent(shadingLabel, GroupLayout.PREFERRED_SIZE, 80, GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(shadingSelector, GroupLayout.PREFERRED_SIZE, 150, GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(unk1Label, GroupLayout.PREFERRED_SIZE, 120, GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(unk1Selector, GroupLayout.PREFERRED_SIZE, 150, GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(filterLabel, GroupLayout.PREFERRED_SIZE, 80, GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(filterSpinner, GroupLayout.PREFERRED_SIZE, 100, GroupLayout.PREFERRED_SIZE))
+                    // Ambient slider row
+                    .addGroup(groupLayout.createSequentialGroup()
+                        .addComponent(ambientLabel, GroupLayout.PREFERRED_SIZE, 80, GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(ambientSlider, GroupLayout.PREFERRED_SIZE, 250, GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(ambientValueLabel, GroupLayout.PREFERRED_SIZE, 50, GroupLayout.PREFERRED_SIZE))
+                    // Diffusion (Specular) slider row
+                    .addGroup(groupLayout.createSequentialGroup()
+                        .addComponent(specularLabel, GroupLayout.PREFERRED_SIZE, 80, GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(specularSlider, GroupLayout.PREFERRED_SIZE, 250, GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(specularValueLabel, GroupLayout.PREFERRED_SIZE, 50, GroupLayout.PREFERRED_SIZE))
+                    // Emit slider row
+                    .addGroup(groupLayout.createSequentialGroup()
+                        .addComponent(emitLabel, GroupLayout.PREFERRED_SIZE, 80, GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(emitSlider, GroupLayout.PREFERRED_SIZE, 250, GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(emitValueLabel, GroupLayout.PREFERRED_SIZE, 50, GroupLayout.PREFERRED_SIZE))
+                    // Spec0 & Spec1 slider row (Fixed layout)
+                    .addGroup(groupLayout.createSequentialGroup()
+                        .addComponent(unk2Label, GroupLayout.PREFERRED_SIZE, 80, GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(spec0Slider, GroupLayout.PREFERRED_SIZE, 250, GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(spec0ValueLabel, GroupLayout.PREFERRED_SIZE, 50, GroupLayout.PREFERRED_SIZE))
+                    .addGroup(groupLayout.createSequentialGroup()
+                        .addComponent(unk3Label, GroupLayout.PREFERRED_SIZE, 80, GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(spec1Slider, GroupLayout.PREFERRED_SIZE, 250, GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(spec1ValueLabel, GroupLayout.PREFERRED_SIZE, 50, GroupLayout.PREFERRED_SIZE))
+            );
+
+            groupLayout.setVerticalGroup(
+                groupLayout.createSequentialGroup()
                     .addGroup(groupLayout.createParallelGroup(Alignment.BASELINE)
                         .addComponent(shadingLabel)
-                        .addComponent(shadingSelector, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+                        .addComponent(shadingSelector)
                         .addComponent(unk1Label)
-                        .addComponent(unk1Selector, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+                        .addComponent(unk1Selector)
                         .addComponent(filterLabel)
-                        .addComponent(filterSpinner, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
-                    .addPreferredGap(ComponentPlacement.UNRELATED)
-                    .addGroup(groupLayout.createParallelGroup(Alignment.BASELINE)
-                        .addComponent(ambientLabel)
-                        .addComponent(ambientSpinner, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
-                        .addComponent(specularLabel)
-                        .addComponent(specularSpinner, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
-                        .addComponent(emitLabel)
-                        .addComponent(emitSpinner, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
-                    .addPreferredGap(ComponentPlacement.RELATED)
-                    .addGroup(groupLayout.createParallelGroup(Alignment.BASELINE)
-                        .addComponent(unk2Label)
-                        .addComponent(unk3Label)
-                        .addComponent(unk2Spinner, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
-                        .addComponent(unk3Spinner, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
-                    .addContainerGap(212, Short.MAX_VALUE))
-        );
+                        .addComponent(filterSpinner))
+                    .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+                    .addGroup(groupLayout.createParallelGroup(Alignment.CENTER)
+                        .addComponent(ambientLabel, GroupLayout.PREFERRED_SIZE, 30, GroupLayout.PREFERRED_SIZE)
+                        .addComponent(ambientSlider, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+                        .addComponent(ambientValueLabel, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
+                    .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+                    .addGroup(groupLayout.createParallelGroup(Alignment.CENTER)
+                        .addComponent(specularLabel, GroupLayout.PREFERRED_SIZE, 30, GroupLayout.PREFERRED_SIZE)
+                        .addComponent(specularSlider, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+                        .addComponent(specularValueLabel, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
+                    .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+                    .addGroup(groupLayout.createParallelGroup(Alignment.CENTER)
+                        .addComponent(emitLabel, GroupLayout.PREFERRED_SIZE, 30, GroupLayout.PREFERRED_SIZE)
+                        .addComponent(emitSlider, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+                        .addComponent(emitValueLabel, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
+                    .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+                    .addGroup(groupLayout.createParallelGroup(Alignment.CENTER)
+                        .addComponent(unk2Label, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+                        .addComponent(spec0Slider, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+                        .addComponent(spec0ValueLabel, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
+                    .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
+                    .addGroup(groupLayout.createParallelGroup(Alignment.CENTER)
+                        .addComponent(unk3Label, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+                        .addComponent(spec1Slider, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+                        .addComponent(spec1ValueLabel, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
+            );
+
+
+
         shadingSelector.setModel(new DefaultComboBoxModel<>(LRTMShadingType.values()));
         unk1Selector.setModel(new DefaultComboBoxModel<>(LRTMUnkownType.values()));
         setLayout(groupLayout);
+
+
     }
-    
+
     @Override
     public void setSelectedFile(Object file) {
         this.selectedLRTM = null;
-        
+
         if (file instanceof LRTMPayload) {
             this.selectedLRTM = (LRTMPayload) file;
-            
+            filterSpinner.setValue(Integer.toUnsignedLong(selectedLRTM.getColorFilter()));
             shadingSelector.setSelectedItem(selectedLRTM.getShadingType());
             unk1Selector.setSelectedItem(selectedLRTM.getUnknownType());
-            filterSpinner.setValue(Integer.toUnsignedLong(selectedLRTM.getColorFilter()));
-            
-            ambientSpinner.setValue(Integer.toUnsignedLong(selectedLRTM.getColor1()));
-            specularSpinner.setValue(Integer.toUnsignedLong(selectedLRTM.getColor2()));
-            emitSpinner.setValue(Integer.toUnsignedLong(selectedLRTM.getColor3()));
-            unk2Spinner.setValue(Integer.toUnsignedLong(selectedLRTM.getColor4()));
-            unk3Spinner.setValue(Integer.toUnsignedLong(selectedLRTM.getColor5()));
+       
+            // Normalize packed RGBA values to set sliders
+            ambientSlider.setValue((int) (normalizeRGBA(selectedLRTM.getColor1()) * 1000));
+            specularSlider.setValue((int) (normalizeRGBA(selectedLRTM.getColor2()) * 1000));
+
+            // Ensure emit value does not decrease
+            int packedRGB = selectedLRTM.getColor3() & 0x00FFFFFF; // Keep only RGB
+            float newEmitNormalized = normalizeRGB(packedRGB); // Get proper normalized value
+
+            spec0Slider.setValue((int) (normalizeRGBA(selectedLRTM.getColor4()) * 1000));
+            spec1Slider.setValue((int) (normalizeRGBA(selectedLRTM.getColor5()) * 1000));
+          
+            int previousEmitValue = emitSlider.getValue();
+            int newEmitValue = (int) (newEmitNormalized * 1000);
+
+            if (previousEmitValue != newEmitValue) {
+                emitSlider.setValue(newEmitValue); // Only update if necessary
+                emitValueLabel.setText(String.format("%.3f", newEmitNormalized));
+            }
+        }
+    }
+
+    
+    private float normalizeRGB(int rgb) {
+        // Extract the Red component (or use Green/Blue since they should be equal)
+        int r = (rgb >> 16) & 0xFF; 
+        return r / 255.0f; // Convert to 0.0 - 1.0 range
+    }
+
+    
+    private JSlider createStyledSlider() {
+        JSlider slider = new JSlider(0, 1000, 500); // Slider values scaled from 0 to 1000
+        slider.setUI(new CustomSliderUI(slider)); // Apply custom UI
+        slider.setPaintTicks(false);
+        slider.setPaintLabels(false);
+        slider.setBackground(new Color(48, 48, 48)); // Background
+        return slider;
+    }
+
+    private int denormalizeSliderToRGBA(float value) {
+        // Convert normalized float (0.0 to 1.0) to packed RGBA (0xRRGGBBAA)
+        int component = (int) (value * 255);
+        return (component << 24) | (component << 16) | (component << 8) | component; // RGBA
+    }
+
+    private float normalizeRGBA(int rgba) {
+        // Convert packed RGBA (0xRRGGBBAA) to normalized float (0.0 to 1.0)
+        return ((rgba >> 24) & 0xFF) / 255.0f; // Extract one component and normalize
+    }
+
+    private int denormalizeSliderToRGB(float value) {
+        int component = Math.round(value * 255); // Use `Math.round` instead of casting
+        return (component << 16) | (component << 8) | component; // Pack RGB only
+    }
+
+
+    private static class CustomSliderUI extends BasicSliderUI {
+        public CustomSliderUI(JSlider slider) {
+            super(slider);
+        }
+
+        @Override
+        public void paintThumb(Graphics g) {
+            Graphics2D g2d = (Graphics2D) g.create();
+            g2d.setColor(new Color(100, 149, 237)); // Thumb color
+            g2d.fillOval(thumbRect.x, thumbRect.y, thumbRect.width, thumbRect.height);
+            g2d.dispose();
+        }
+
+
+        @Override
+        public void paintTrack(Graphics g) {
+            Graphics2D g2d = (Graphics2D) g.create();
+            int trackHeight = 4;
+            int trackY = trackRect.y + (trackRect.height - trackHeight) / 2;
+
+            // Draw filled portion
+            g2d.setColor(new Color(0, 122, 204));
+            g2d.fillRect(trackRect.x, trackY, thumbRect.x - trackRect.x, trackHeight);
+
+            // Draw unfilled portion
+            g2d.setColor(new Color(100, 100, 100));
+            g2d.fillRect(thumbRect.x, trackY, trackRect.width - (thumbRect.x - trackRect.x), trackHeight);
+
+            g2d.dispose();
         }
     }
 }
+

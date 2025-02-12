@@ -1,8 +1,10 @@
 package net.digimonworld.decodetools.res.payload;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.List;
 
+import org.lwjgl.assimp.AINodeAnim;
 import org.lwjgl.assimp.AIQuatKey;
 import org.lwjgl.assimp.AIVectorKey;
 
@@ -78,7 +80,7 @@ public class VCTMPayload extends ResPayload {
         timeType = TimeType.values()[timeFlags & 0xF];
         
         unk4 = source.readByte();
-        
+ 
         coordSize = source.readShort();
         entrySize = source.readShort();
         unknown4 = source.readFloat();
@@ -99,11 +101,9 @@ public class VCTMPayload extends ResPayload {
     }
 
     // Position/Scale (3 Values)
-    public VCTMPayload(AbstractKCAP parent, List<AIVectorKey> keys, float ticks, float scale) {
+    public VCTMPayload(AbstractKCAP parent, List<AIVectorKey> keys, double ticks, float scale) {
         super(parent);
-
-        //float realDuration = roundToNearestHundred((float) (duration / ticksPerSec * 333));
-        
+     
         numEntries = keys.size();
 
         InitializeVCTM(3);
@@ -113,7 +113,8 @@ public class VCTMPayload extends ResPayload {
         
         for (int i = 0; i < numEntries; i++) {
             // Convert time data to uint16 bytes
-            int newTime = (int)Math.round((float) (keys.get(i).mTime() * 333 / ticks));
+        	int newTime = (int)roundTime(keys.get(i).mTime(), keys.get(1).mTime());
+            //System.out.println(roundTime(keys.get(i).mTime(), keys.get(0).mTime()));
 
             byte[] timeBytes = { (byte) (newTime), (byte) (newTime >> 8) };
 
@@ -138,7 +139,7 @@ public class VCTMPayload extends ResPayload {
     }
 
     // Rotation
-    public VCTMPayload(AbstractKCAP parent, List<AIQuatKey> keys, float ticks) {
+    public VCTMPayload(AbstractKCAP parent, List<AIQuatKey> keys, double ticks) {
         super(parent);
         
         numEntries = keys.size();
@@ -150,7 +151,8 @@ public class VCTMPayload extends ResPayload {
         
         for (int i = 0; i < numEntries; i++) {
             // Convert time data to uint16 bytes
-            int newTime = (int)Math.round((float) (keys.get(i).mTime() * 333 / ticks));
+        	int newTime = (int)roundTime(keys.get(i).mTime(), keys.get(1).mTime());
+            //System.out.println(roundTime(keys.get(i).mTime(), keys.get(0).mTime()));
 
             byte[] timeBytes = { (byte) (newTime), (byte) (newTime >> 8) };
 
@@ -193,7 +195,7 @@ public class VCTMPayload extends ResPayload {
         }
         else {
             interpolationMode = InterpolationMode.LINEAR_1D;
-        }
+        }              
         
         componentCount = (byte)(components & 0xff);
         componentType = ComponentType.FLOAT16;
@@ -206,78 +208,53 @@ public class VCTMPayload extends ResPayload {
         unknown5 = 0;
     }
 
-    public static float roundToNearestHundred(float value) {
-        return Math.round(value / 100.0f) * 100.0f;
+    public static float roundTime(double value, double firstValue) {
+        //return (float)Math.floor(((value * 1000f) / (3f * ticks)));
+        return (float)Math.round((value/firstValue)*10.0);
+        //return (float)(value*10.0);
     }
 
+    private float[] cachedFrameList = null;  
+
     public float[] getFrameList() {
-        float[] frames = new float[numEntries];
+        if (cachedFrameList != null) {
+            return cachedFrameList;
+        }
+
+         cachedFrameList = new float[numEntries];
 
         for (int i = 0; i < numEntries; i++) {
             byte[] data = data1[i].getData();
-
-            frames[i] = convertBytesToTime(data);
-            frames[i] *= timeScale.value;
+            cachedFrameList[i] = convertBytesToTime(data) * timeScale.value;
         }
 
-        return frames;
+        return cachedFrameList;
     }
 
     public float convertBytesToTime(byte[] data) {
-        reverseArray(data);
-
+    
         float finalVal;
-
+        ByteBuffer buffer = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN); 
+        
         switch(timeType) {
-            case FLOAT: // float 32?
-                finalVal = ByteBuffer.wrap(data).getFloat();
+            case FLOAT: 
+                finalVal = buffer.getFloat(); 
                 break;
-            // case FLOAT16:
-            //     byte[] float16data = new byte[4];
-            //     float16data[0] = 0x00;
-            //     float16data[1] = 0x00;
-            //     float16data[2] = data[0];
-            //     float16data[3] = data[1];
-
-            //     finalVal = convert16to32(ByteBuffer.wrap(float16data).getInt());
-            //     break;
             case INT16:
-                byte[] int16Data = new byte[4];
-                
-                int16Data[0] = (byte)(0x80 & data[0]);
-                int16Data[1] = 0x00;
-                int16Data[2] = (byte)(0x7f & data[0]);
-                int16Data[3] = data[1];
-
-                finalVal = (float)ByteBuffer.wrap(int16Data).getInt();
+                short int16Value = buffer.getShort();
+                finalVal = (float) int16Value;
                 break;
             case INT8:
-                byte[] int8Data = new byte[4];
-
-                int8Data[0] = (byte)(0x80 & data[0]);
-                int8Data[1] = 0x00;
-                int8Data[2] = 0x00;
-                int8Data[3] = (byte)(0x7f & data[0]);
-
-                finalVal = (float)ByteBuffer.wrap(int8Data).getInt();
+                byte int8Value = buffer.get();
+                finalVal = (float) int8Value;
                 break;
             case UINT16:
-                byte[] uint16data = new byte[4];
-                uint16data[0] = 0x00;
-                uint16data[1] = 0x00;
-                uint16data[2] = data[0];
-                uint16data[3] = data[1];
-                
-                finalVal = (float)ByteBuffer.wrap(uint16data).getInt();
+                int uint16Value = Short.toUnsignedInt(buffer.getShort()); 
+                finalVal = (float) uint16Value;
                 break;
             case UINT8:
-                byte[] uint8data = new byte[4];
-                uint8data[0] = 0x00;
-                uint8data[1] = 0x00;
-                uint8data[2] = 0x00;
-                uint8data[3] = data[0];
-                
-                finalVal = (float)ByteBuffer.wrap(uint8data).getInt();
+                int uint8Value = Byte.toUnsignedInt(buffer.get());
+                finalVal = (float) uint8Value;
                 break;
             default:
                 finalVal = 0;
@@ -288,61 +265,44 @@ public class VCTMPayload extends ResPayload {
     }
 
     public float convertBytesToValue(byte[] data) {
-        reverseArray(data);
+        if (data == null || data.length == 0) {
+            throw new IllegalArgumentException("Data array cannot be null or empty.");
+        }
 
         float finalVal = 0;
+        ByteBuffer buffer = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN); 
 
-        switch(componentType) {
+        switch (componentType) {
             case FLOAT32:
-                finalVal = ByteBuffer.wrap(data).getFloat();
+                if (data.length < 4) throw new IllegalArgumentException("Insufficient bytes for FLOAT32.");
+                finalVal = buffer.getFloat();
                 break;
+                
             case FLOAT16:
-                byte[] float16data = new byte[4];
-                float16data[0] = 0x00;
-                float16data[1] = 0x00;
-                float16data[2] = data[0];
-                float16data[3] = data[1];
-
-                finalVal = halfToSingle(ByteBuffer.wrap(float16data).getInt());
+                if (data.length < 2) throw new IllegalArgumentException("Insufficient bytes for FLOAT16.");
+                finalVal = Float.float16ToFloat(buffer.getShort()); 
                 break;
+                
             case INT16:
-                byte[] int16Data = new byte[4];
-                
-                int16Data[0] = (byte)(0x80 & data[0]);
-                int16Data[1] = 0x00;
-                int16Data[2] = (byte)(0x7f & data[0]);
-                int16Data[3] = data[1];
-
-                finalVal = (float)ByteBuffer.wrap(int16Data).getInt();
+                if (data.length < 2) throw new IllegalArgumentException("Insufficient bytes for INT16.");
+                finalVal = (float) buffer.getShort(); 
                 break;
+                
             case INT8:
-                byte[] int8Data = new byte[4];
-
-                int8Data[0] = (byte)(0x80 & data[0]);
-                int8Data[1] = 0x00;
-                int8Data[2] = 0x00;
-                int8Data[3] = (byte)(0x7f & data[0]);
-
-                finalVal = (float)ByteBuffer.wrap(int8Data).getInt();
+                if (data.length < 1) throw new IllegalArgumentException("Insufficient bytes for INT8.");
+                finalVal = (float) buffer.get(); 
                 break;
+                
             case UINT16:
-                byte[] uint16data = new byte[4];
-                uint16data[0] = 0x00;
-                uint16data[1] = 0x00;
-                uint16data[2] = data[0];
-                uint16data[3] = data[1];
-                
-                finalVal = (float)ByteBuffer.wrap(uint16data).getInt();
+                if (data.length < 2) throw new IllegalArgumentException("Insufficient bytes for UINT16.");
+                finalVal = (float) Short.toUnsignedInt(buffer.getShort());
                 break;
+                
             case UINT8:
-                byte[] uint8data = new byte[4];
-                uint8data[0] = 0x00;
-                uint8data[1] = 0x00;
-                uint8data[2] = 0x00;
-                uint8data[3] = data[0];
-                
-                finalVal = (float)ByteBuffer.wrap(uint8data).getInt();
+                if (data.length < 1) throw new IllegalArgumentException("Insufficient bytes for UINT8.");
+                finalVal = (float) Byte.toUnsignedInt(buffer.get()); // Correct unsigned conversion
                 break;
+                
             default:
                 finalVal = 0;
                 break;
@@ -351,63 +311,8 @@ public class VCTMPayload extends ResPayload {
         return finalVal;
     }
 
-    private float halfToSingle (int float16bits) {
-        int nonSign = float16bits & 0x7fff;
-        int sign = float16bits & 0x8000;
-        int exp = float16bits & 0x7c00;
 
-        nonSign = nonSign << 13;
-        sign = sign << 16;
-
-        nonSign += 0x38000000;
-
-        nonSign = (exp == 0 ? 0 : nonSign);
-
-        nonSign = nonSign | sign;
-
-        return Float.intBitsToFloat(nonSign);
-    }
-
-    public static short singleToHalf(float single) {
-        int singleBits = Float.floatToIntBits(single);
-        int sign = (singleBits >> 31) & 0x1;
-        int exponent = (singleBits >> 23) & 0xFF;
-        int fraction = singleBits & 0x7FFFFF;
-        short half;
-    
-        if (exponent == 0xFF) { // Handle NaN and infinity
-            half = (short) ((sign << 15) | (0x1F << 10) | (fraction != 0 ? 0x200 : 0));
-        } else {
-            int newExponent = exponent - 127 + 15;
-            if (newExponent >= 0x1F) { // Handle overflow to infinity
-                half = (short) ((sign << 15) | (0x1F << 10));
-            } else if (newExponent <= 0) { // Handle subnormal values
-                if (newExponent < -10) {
-                    half = (short) (sign << 15);
-                } else {
-                    fraction = (fraction | 0x800000) >> (1 - newExponent);
-                    half = (short) ((sign << 15) | (fraction >> 13));
-                }
-            } else { // Normal conversion
-                half = (short) ((sign << 15) | (newExponent << 10) | (fraction >> 13));
-            }
-        }
-        return half;
-    }
-
-    private void reverseArray(byte arr[]) {
-        byte temp;
-
-        int len2 = arr.length >> 1;
-
-        for (int i = 0; i < len2; i++) {
-            temp = arr[i];
-            arr[i] = arr[arr.length - i - 1];
-            arr[arr.length - i - 1] = temp;
-        }
-    }
-
-    public Byte[][] getRawFrameData(int entryIndex) {
+       public Byte[][] getRawFrameData(int entryIndex) {
         int compCount = getComponentCount();
 
         int dataSize = coordSize / compCount;
@@ -462,7 +367,7 @@ public class VCTMPayload extends ResPayload {
         return timeScale;
     }
     
-    public byte getUnk4() {
+    public byte getUnk4() { 	
         return unk4;
     }
     

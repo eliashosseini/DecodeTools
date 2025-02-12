@@ -424,7 +424,8 @@ public class GLTFExporter {
 
         // TODO deal with materials proper, support multiple textures and LRTM
         if (textureAssignment.getOrDefault((short) 0, (short) -1) != -1) {
-            int matIndex = activeMaterial.getMaterialId();
+            //int matIndex = activeMaterial.getMaterialId();
+            int matIndex = 0;
             Material mat = instance.getMaterials().get(matIndex);
 
             int texIndex = textureAssignment.get((short) 0).intValue();

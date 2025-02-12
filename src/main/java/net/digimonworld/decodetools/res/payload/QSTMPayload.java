@@ -16,9 +16,11 @@ import net.digimonworld.decodetools.res.payload.qstm.QSTM02Entry;
 import net.digimonworld.decodetools.res.payload.qstm.QSTMEntry;
 
 public class QSTMPayload extends ResPayload {
-    private short unknown1; // known values 0 1 2 4, never read? QSTM 0 = 2, QSTM 2 = 4
+    private short unknown1; // 1, 2 = normal loop, 3-4 have functions
     
     private List<QSTMEntry> entries = new ArrayList<>();
+
+    private short unkDefault = 4;
     
     public QSTMPayload(Access source, int dataStart, AbstractKCAP parent, int size, String name) {
         super(parent);
@@ -34,7 +36,7 @@ public class QSTMPayload extends ResPayload {
     public QSTMPayload(AbstractKCAP parent, AIVectorKey key) {
         super(parent);
 
-        unknown1 = 2; // Figure out what this value means?
+        unknown1 = unkDefault;
 
         List<Float> vals = new ArrayList<Float>();
 
@@ -50,7 +52,7 @@ public class QSTMPayload extends ResPayload {
     public QSTMPayload(AbstractKCAP parent, AIQuatKey key) {
         super(parent);
 
-        unknown1 = 2; // Figure out what this value means?
+        unknown1 = unkDefault;
 
         List<Float> vals = new ArrayList<Float>();
 
@@ -64,22 +66,22 @@ public class QSTMPayload extends ResPayload {
         entries.add(qstmEntry);
     }
 
-    public QSTMPayload(AbstractKCAP parent, int vctmId) {
+    public QSTMPayload(AbstractKCAP parent, List<Float> vals) {
         super(parent);
 
-        unknown1 = 4; // Figure out what this value means?
+        unknown1 = unkDefault;
 
-        QSTMEntry qstmEntry = new QSTM02Entry(vctmId);
+        QSTMEntry qstmEntry = new QSTM00Entry(vals);
 
         entries.add(qstmEntry);
     }
 
-    public QSTMPayload(AbstractKCAP parent, List<Float> vals) {
+    public QSTMPayload(AbstractKCAP parent, int vctmId) {
         super(parent);
 
-        unknown1 = 2; // Figure out what this value means?
+        unknown1 = unkDefault;
 
-        QSTMEntry qstmEntry = new QSTM00Entry(vals);
+        QSTMEntry qstmEntry = new QSTM02Entry(vctmId);
 
         entries.add(qstmEntry);
     }

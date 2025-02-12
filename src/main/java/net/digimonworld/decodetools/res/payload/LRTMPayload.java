@@ -199,8 +199,8 @@ public class LRTMPayload extends NameablePayload {
     }
     
     public enum LRTMUnkownType {
-        VAL0((short) 0, false),
-        VAL1((short) 1, true);
+        DISABLED((short) 0, false),
+        ENABLED((short) 1, true);
         
         private final short id;
         private boolean hasData;
@@ -223,7 +223,7 @@ public class LRTMPayload extends NameablePayload {
                 if(val.getId() == id)
                     return val;
             
-            return VAL0;
+            return DISABLED;
         }
     }
     
