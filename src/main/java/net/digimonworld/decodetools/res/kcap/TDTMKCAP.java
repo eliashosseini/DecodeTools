@@ -120,8 +120,7 @@ public class TDTMKCAP extends AbstractKCAP {
 
         float endTime = 0;
         float startTime = Float.MAX_VALUE;
-        float timeScale = 1;
-
+        
         int vctmCount = 0;
         int qstmCount = 0;
 
@@ -150,7 +149,6 @@ public class TDTMKCAP extends AbstractKCAP {
             
             //get Position Keyframes
             AIVectorKey.Buffer positionKeys = nodeAnim.mPositionKeys();
-
 
             for (int j = 0; j < nodeAnim.mNumPositionKeys(); j++) {
                 AIVectorKey key = positionKeys.get(j);
@@ -298,22 +296,16 @@ public class TDTMKCAP extends AbstractKCAP {
             default: name = "anim_" + index; break;
         }
 
-        // System.out.println("Animation: " + name);
-
         float animDuration = (time2-time1)/333;
 
-        // Each TDTM Entry can only map one joint, contains translation OR rotation OR scale
         for (int i = 0; i < tdtmEntry.size(); i++) {
             TDTMEntry tEntry = tdtmEntry.get(i);
 
-            // only handle joint animations
             if (tEntry.transformType != 0x10) {
                 continue;
             }
 
             int jointId = tEntry.jointId;
-
-            // System.out.println("Joint: " + jointId + ", " + tEntry.mode);
 
             // only handle joints in range that don't have defined matrices
             if (jointId >= instance.getNodes().size() || instance.getNodes().get(jointId).getMatrix() != null) {
@@ -340,9 +332,7 @@ public class TDTMKCAP extends AbstractKCAP {
                 QSTMEntry qEntry = qstmPayload.getEntries().get(j);
                 QSTMEntryType type = qEntry.getType();
 
-                // if (name == "idle") System.out.println("QSTM Type: " + type.getId());
-
-                switch(type.getId()) {
+                 switch(type.getId()) {
                     case 0:
                         QSTM00Entry qstm00Entry = (QSTM00Entry)qEntry;
 
