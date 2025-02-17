@@ -22,7 +22,7 @@ public class VCTMPanel extends PayloadPanel {
         setSelectedFile(selected);
 
         String[] columnNames = {
-        	    "Frame Index", "Time", "Component Count", 
+        	    "Frame Index", "Time", "Time Scale","Component Count", 
         	    "Component Type", "Interpolation", 
         	    "X", "Y", "Z", "W"
         	};
@@ -68,7 +68,7 @@ public class VCTMPanel extends PayloadPanel {
         tableModel.setRowCount(0); // Clear table
 
         // Retrieve frame times
-        float[] frameTimes = vctm.getFrameList();
+        float[] frameTimes = vctm.getFrameTimes();
         int numEntries = frameTimes.length;
         int componentCount = vctm.getComponentCount();
         String componentType = vctm.getComponentType().toString();
@@ -118,6 +118,7 @@ public class VCTMPanel extends PayloadPanel {
             tableModel.addRow(new Object[]{
                 i,                                    // Frame Index
                 frameTimes[i], 						  // Time
+                vctm.getTimeScale(),				  //Time Scale
                 componentCount,                       // Component Count
                 componentType,                        // Component Type
                 interpolation,                        // Interpolation
