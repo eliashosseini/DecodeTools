@@ -7,7 +7,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.lwjgl.assimp.AIQuatKey;
+import org.lwjgl.assimp.AIQuaternion;
+import org.lwjgl.assimp.AIVector3D;
 import org.lwjgl.assimp.AIVectorKey;
+import org.lwjgl.system.MemoryStack;
 
 import net.digimonworld.decodetools.core.Access;
 import net.digimonworld.decodetools.core.Utils;
@@ -90,16 +93,13 @@ public class VCTMPayload extends ResPayload {
         unknown5 = source.readFloat();
         
         data1 = new VCTMEntry[numEntries];
-        data2 = new VCTMEntry[numEntries];
-        
+        data2 = new VCTMEntry[numEntries];        
         
         source.setPosition(start + entriesStart);
         for (int i = 0; i < numEntries; i++) {
         data1[i] = new VCTMEntry(source.readByteArray(entrySize));    
          }
-        
-
-        
+                
         source.setPosition(start + coordStart);
         for (int i = 0; i < numEntries; i++)
             data2[i] = new VCTMEntry(source.readByteArray(coordSize));
@@ -111,9 +111,9 @@ public class VCTMPayload extends ResPayload {
     // Position/Scale (3 Values)
     public VCTMPayload(AbstractKCAP parent, List<AIVectorKey> keys, float ticks, float scale) {
         super(parent);
-      
-        numEntries = keys.size();
-    
+
+        numEntries = keys.size();    
+       
         float[] timeValues = new float[numEntries];
         for (int i = 0; i < numEntries; i++) {
             timeValues[i] = (float) keys.get(i).mTime();
@@ -129,7 +129,8 @@ public class VCTMPayload extends ResPayload {
                   
         for (int i = 0; i < numEntries; i++) {       	
             
-       	 int newTime = (int) Math.round((timeValues[i] * 333.0f / ticks));
+        int newTime = Math.round(timeValues[i] * 333.0f / ticks);
+
          byte[] timeBytes = { (byte) (newTime), (byte) (newTime >> 8) };
        	 data1[i] = new VCTMEntry(timeBytes);
        } 
@@ -148,8 +149,8 @@ public class VCTMPayload extends ResPayload {
 
         	float x= (keys.get(i).mValue().x());
          	float y= (keys.get(i).mValue().y());
-         	float z= (keys.get(i).mValue().z());
-         
+         	float z= (keys.get(i).mValue().z());                
+       	
          	byte[] allBytes = ByteBuffer.allocate(3* Float.BYTES)
                     .order(ByteOrder.LITTLE_ENDIAN) 
                     .putFloat(x)
@@ -157,6 +158,8 @@ public class VCTMPayload extends ResPayload {
                     .putFloat(z)
                     .array();
             data2[i] = new VCTMEntry(allBytes);
+            
+            
         }
             
     }
@@ -166,6 +169,9 @@ public class VCTMPayload extends ResPayload {
     public VCTMPayload(AbstractKCAP parent, List<AIQuatKey> keys, float ticks) {
         super(parent);
         
+        AIQuatKey firstRotKey = keys.get(0);
+        float loopTime = (float) keys.get(keys.size() - 1).mTime(); // Ensure time matches expected loop duration
+
         numEntries = keys.size();
 
         float[] timeValues = new float[numEntries];
@@ -183,11 +189,12 @@ public class VCTMPayload extends ResPayload {
         
         for (int i = 0; i < numEntries; i++) {       	
         
-        	 int newTime = (int) Math.round((timeValues[i] * 333.0f / ticks));
-             byte[] timeBytes = { (byte) (newTime), (byte) (newTime >> 8) };
-        	 data1[i] = new VCTMEntry(timeBytes);
-        } 
-        
+        int newTime = Math.round(timeValues[i] * 333.0f / ticks);
+
+        byte[] timeBytes = { (byte) (newTime), (byte) (newTime >> 8) };
+        data1[i] = new VCTMEntry(timeBytes);
+        }                         
+
         for (int i = 0; i < numEntries; i++) {
        
 
@@ -195,6 +202,13 @@ public class VCTMPayload extends ResPayload {
          	float y= (keys.get(i).mValue().y());
          	float z= (keys.get(i).mValue().z());
         	float w= (keys.get(i).mValue().w());
+        	
+        	//Normalize quaternions
+        	float length = (float) Math.sqrt(x*x + y*y + z*z + w*w);
+        	x /= length;
+        	y /= length;
+        	z /= length;
+        	w /= length;
         	
         	// Convert key data to float16 bytes
          	//short xVal =  Float.floatToFloat16(keys.get(i).mValue().x());
@@ -223,7 +237,7 @@ public class VCTMPayload extends ResPayload {
 
     private void InitializeVCTM(int components) {
         coordSize = (short)(4*components); // byte length of coord values
-        entrySize = 1; // byte length of time values
+        entrySize = 2; // byte length of time values
         entriesStart = 0x20;
         coordStart = Utils.align(entriesStart + numEntries * entrySize, 0x4);
         
@@ -241,7 +255,7 @@ public class VCTMPayload extends ResPayload {
         componentCount = (byte)(components & 0xff);
         componentType = ComponentType.FLOAT32;
         
-        timeType = TimeType.UINT8;
+        timeType = TimeType.UINT16;
         
         unk4 = 0;
         unknown4 = 0;

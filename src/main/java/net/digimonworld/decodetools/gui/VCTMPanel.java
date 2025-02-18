@@ -69,6 +69,7 @@ public class VCTMPanel extends PayloadPanel {
 
         // Retrieve frame times
         float[] frameTimes = vctm.getFrameTimes();
+
         int numEntries = frameTimes.length;
         int componentCount = vctm.getComponentCount();
         String componentType = vctm.getComponentType().toString();
@@ -100,7 +101,9 @@ public class VCTMPanel extends PayloadPanel {
                         break;
                     case "FLOAT32":
                         float floatValue = ByteBuffer.wrap(componentBytes).order(ByteOrder.LITTLE_ENDIAN).getFloat();
-                        rawValue = String.valueOf(floatValue);
+                     //   rawValue = String.valueOf(floatValue);
+                        rawValue = String.format("%.6f", floatValue);  // Shows up to 6 decimal places, no scientific notation
+
                         break;
                     default:
                         rawValue = "UNKNOWN";
