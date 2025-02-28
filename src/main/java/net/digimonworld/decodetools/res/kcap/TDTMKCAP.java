@@ -253,22 +253,38 @@ public class TDTMKCAP extends AbstractKCAP {
             }
 
             
-            // get lowest time from each data set
-            startTime = Math.min(startTime, Math.round((float) ((posData.get(0).mTime() * 333) / animation.mTicksPerSecond())));
-            startTime = Math.min(startTime, Math.round((float) ((rotData.get(0).mTime() * 333) / animation.mTicksPerSecond())));
-            startTime = Math.min(startTime, Math.round((float) ((scaData.get(0).mTime() * 333) / animation.mTicksPerSecond())));
-            
-            // get highest time from each data set
-            endTime = Math.max(endTime, Math.round((float) ((posData.get(posData.size()-1).mTime() * 333) / animation.mTicksPerSecond())));
-            endTime = Math.max(endTime, Math.round((float) ((rotData.get(rotData.size()-1).mTime() * 333) / animation.mTicksPerSecond())));
-            endTime = Math.max(endTime, Math.round((float) ((scaData.get(scaData.size()-1).mTime() * 333) / animation.mTicksPerSecond())));
-            
-        }
+         // Get the lowest (earliest) keyframe time across all datasets
+            float minStartTime = Math.min(
+                Math.min((float) posData.get(0).mTime(), (float) rotData.get(0).mTime()),
+                (float) scaData.get(0).mTime()
+            );
 
-        time1 = 0;
-        time2 = endTime;
-        time3 = time1;
-        time4 = time2;
+            // Get the highest (latest) keyframe time across all datasets
+            float maxEndTime = Math.max(
+                Math.max((float) posData.get(posData.size() - 1).mTime(), (float) rotData.get(rotData.size() - 1).mTime()),
+                (float) scaData.get(scaData.size() - 1).mTime()
+            );
+
+            // Normalize all keyframe times so that the first keyframe is at 0
+            for (int x = 0; x < posData.size(); x++) {
+                posData.get(x).mTime(posData.get(x).mTime() - minStartTime);
+            }
+            for (int y = 0; y < rotData.size(); y++) {
+                rotData.get(y).mTime(rotData.get(y).mTime() - minStartTime);
+            }
+            for (int z = 0; z < scaData.size(); z++) {
+                scaData.get(z).mTime(scaData.get(z).mTime() - minStartTime);
+            }
+
+            // Properly scaled and rounded endTime to match the 30ms per frame logic
+            endTime = Math.round((maxEndTime - minStartTime) * 300.0f / animation.mTicksPerSecond());
+
+            time1 = 0;
+            time2 = endTime;
+            time3 = time1;
+            time4 = time2;
+
+        }
     }
 
     public void exportGLTFAnimation(GlTF instance, int index) {

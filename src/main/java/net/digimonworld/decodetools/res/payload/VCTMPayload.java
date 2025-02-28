@@ -119,8 +119,17 @@ public class VCTMPayload extends ResPayload {
             timeValues[i] = (float) keys.get(i).mTime();
         }
 
+        float firstTime = timeValues[0]; // Get the first keyframe time
+        for (int i = 0; i < timeValues.length; i++) {
+            timeValues[i] -= firstTime; // Normalize time so first keyframe is at 0.0
+        }
+
         // Determine the appropriate time scale
-        timeScale = getTimeScaleFromGLTF(timeValues);
+        if (numEntries == 2) {
+            timeScale = TimeScale.EVERY_30_FRAMES;
+        } else {
+            timeScale = TimeScale.EVERY_10_FRAMES;
+        }
         
         InitializeVCTM(3);
 
@@ -128,10 +137,9 @@ public class VCTMPayload extends ResPayload {
         data2 = new VCTMEntry[numEntries];
                   
         for (int i = 0; i < numEntries; i++) {       	
-            
-        int newTime = Math.round(timeValues[i] * 333.0f / ticks);
-
-         byte[] timeBytes = { (byte) (newTime), (byte) (newTime >> 8) };
+        int newTime = (int) (Math.round(timeValues[i] * 300.0f / ticks)/timeScale.getValue());
+              	
+         byte[] timeBytes = { (byte) (newTime)};
        	 data1[i] = new VCTMEntry(timeBytes);
        } 
         
@@ -169,17 +177,23 @@ public class VCTMPayload extends ResPayload {
     public VCTMPayload(AbstractKCAP parent, List<AIQuatKey> keys, float ticks) {
         super(parent);
         
-        AIQuatKey firstRotKey = keys.get(0);
-        float loopTime = (float) keys.get(keys.size() - 1).mTime(); // Ensure time matches expected loop duration
-
         numEntries = keys.size();
 
         float[] timeValues = new float[numEntries];
         for (int i = 0; i < numEntries; i++) {
             timeValues[i] = (float) keys.get(i).mTime();
         }
-        timeScale = getTimeScaleFromGLTF(timeValues);
-
+        
+        float firstTime = timeValues[0]; // Get the first keyframe time
+        for (int i = 0; i < timeValues.length; i++) {
+            timeValues[i] -= firstTime; // Normalize time so first keyframe is at 0.0
+        }
+        
+        if (numEntries == 2) {
+            timeScale = TimeScale.EVERY_30_FRAMES;
+        } else {
+            timeScale = TimeScale.EVERY_10_FRAMES;
+        }
         // Determine the appropriate time scale
         
         InitializeVCTM(4);
@@ -188,10 +202,13 @@ public class VCTMPayload extends ResPayload {
         data2 = new VCTMEntry[numEntries];
         
         for (int i = 0; i < numEntries; i++) {       	
-        
-        int newTime = Math.round(timeValues[i] * 333.0f / ticks);
+     
+         	// Adjust to match Vanilla’s 30ms per frame timing
+        	int newTime = (int) (Math.round(timeValues[i] * 300.0f / ticks)/timeScale.getValue());
+     
+        System.out.println("GLTF Time: " + timeValues[i] + " → VCTM Time: " + newTime);
 
-        byte[] timeBytes = { (byte) (newTime), (byte) (newTime >> 8) };
+        byte[] timeBytes = { (byte) (newTime)};
         data1[i] = new VCTMEntry(timeBytes);
         }                         
 
@@ -237,7 +254,7 @@ public class VCTMPayload extends ResPayload {
 
     private void InitializeVCTM(int components) {
         coordSize = (short)(4*components); // byte length of coord values
-        entrySize = 2; // byte length of time values
+        entrySize = 1; // byte length of time values
         entriesStart = 0x20;
         coordStart = Utils.align(entriesStart + numEntries * entrySize, 0x4);
         
@@ -245,8 +262,8 @@ public class VCTMPayload extends ResPayload {
             interpolationMode = InterpolationMode.LINEAR_3D;
         }
         else if (components == 4) {
-            interpolationMode = InterpolationMode.LINEAR_4D;
-            //interpolationMode = InterpolationMode.SPHERICAL_LINEAR;
+            //interpolationMode = InterpolationMode.LINEAR_4D;
+            interpolationMode = InterpolationMode.SPHERICAL_LINEAR;
         }
         else {
             interpolationMode = InterpolationMode.LINEAR_1D;
@@ -255,7 +272,7 @@ public class VCTMPayload extends ResPayload {
         componentCount = (byte)(components & 0xff);
         componentType = ComponentType.FLOAT32;
         
-        timeType = TimeType.UINT16;
+        timeType = TimeType.UINT8;
         
         unk4 = 0;
         unknown4 = 0;
@@ -273,7 +290,8 @@ public class VCTMPayload extends ResPayload {
 
         for (int i = 0; i < numEntries; i++) {
             byte[] data = data1[i].getData();
-            cachedFrameList[i] = convertBytesToTime(data) * timeScale.value;
+        cachedFrameList[i] = convertBytesToTime(data) * timeScale.value;
+             
         }
 
         return cachedFrameList;
