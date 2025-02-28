@@ -111,37 +111,44 @@ public class VCTMPayload extends ResPayload {
     // Position/Scale (3 Values)
     public VCTMPayload(AbstractKCAP parent, List<AIVectorKey> keys, float ticks, float scale) {
         super(parent);
-
+        int newTime=0;
         numEntries = keys.size();    
        
         float[] timeValues = new float[numEntries];
         for (int i = 0; i < numEntries; i++) {
             timeValues[i] = (float) keys.get(i).mTime();
-        }
-
+         
+        }                   
+        
         float firstTime = timeValues[0]; // Get the first keyframe time
         for (int i = 0; i < timeValues.length; i++) {
             timeValues[i] -= firstTime; // Normalize time so first keyframe is at 0.0
         }
-
-        // Determine the appropriate time scale
-        if (numEntries == 2) {
-            timeScale = TimeScale.EVERY_30_FRAMES;
-        } else {
-            timeScale = TimeScale.EVERY_10_FRAMES;
-        }
+        
+        timeScale = getTimeScale(timeValues,300.0f);
         
         InitializeVCTM(3);
 
         data1 = new VCTMEntry[numEntries];
         data2 = new VCTMEntry[numEntries];
                   
+        float maxFrameTime = 0;  // Initialize max time
+
+        for (float time : timeValues) {
+            maxFrameTime = Math.max(maxFrameTime, time);
+        }
+
         for (int i = 0; i < numEntries; i++) {       	
-        int newTime = (int) (Math.round(timeValues[i] * 300.0f / ticks)/timeScale.getValue());
-              	
+        newTime = (int) (Math.round(timeValues[i] * 300.0f / ticks)/timeScale.getValue());
+   
+       
          byte[] timeBytes = { (byte) (newTime)};
        	 data1[i] = new VCTMEntry(timeBytes);
        } 
+        for (int i = 1; i < timeValues.length; i++) {
+            System.out.println("Frame Interval: " + (timeValues[i] - timeValues[i - 1]));
+        }
+
         
         for (int i = 0; i < numEntries; i++) {
             // Convert key data to float16 bytes
@@ -158,7 +165,7 @@ public class VCTMPayload extends ResPayload {
         	float x= (keys.get(i).mValue().x());
          	float y= (keys.get(i).mValue().y());
          	float z= (keys.get(i).mValue().z());                
-       	
+         
          	byte[] allBytes = ByteBuffer.allocate(3* Float.BYTES)
                     .order(ByteOrder.LITTLE_ENDIAN) 
                     .putFloat(x)
@@ -183,17 +190,13 @@ public class VCTMPayload extends ResPayload {
         for (int i = 0; i < numEntries; i++) {
             timeValues[i] = (float) keys.get(i).mTime();
         }
-        
         float firstTime = timeValues[0]; // Get the first keyframe time
         for (int i = 0; i < timeValues.length; i++) {
             timeValues[i] -= firstTime; // Normalize time so first keyframe is at 0.0
         }
         
-        if (numEntries == 2) {
-            timeScale = TimeScale.EVERY_30_FRAMES;
-        } else {
-            timeScale = TimeScale.EVERY_10_FRAMES;
-        }
+
+        timeScale = getTimeScale(timeValues,300.0f);
         // Determine the appropriate time scale
         
         InitializeVCTM(4);
@@ -203,11 +206,8 @@ public class VCTMPayload extends ResPayload {
         
         for (int i = 0; i < numEntries; i++) {       	
      
-         	// Adjust to match Vanilla’s 30ms per frame timing
-        	int newTime = (int) (Math.round(timeValues[i] * 300.0f / ticks)/timeScale.getValue());
-     
-        System.out.println("GLTF Time: " + timeValues[i] + " → VCTM Time: " + newTime);
-
+        int newTime = (int) (Math.round(timeValues[i] * 300.0f / ticks)/timeScale.getValue());
+            
         byte[] timeBytes = { (byte) (newTime)};
         data1[i] = new VCTMEntry(timeBytes);
         }                         
@@ -220,12 +220,21 @@ public class VCTMPayload extends ResPayload {
          	float z= (keys.get(i).mValue().z());
         	float w= (keys.get(i).mValue().w());
         	
-        	//Normalize quaternions
-        	float length = (float) Math.sqrt(x*x + y*y + z*z + w*w);
-        	x /= length;
-        	y /= length;
-        	z /= length;
-        	w /= length;
+        	// Normalize after conversion to prevent SLERP issues
+        	float length = (float) Math.sqrt(x * x + y * y + z * z + w * w);
+        	if (length > 1e-6f) {
+        	    x /= length;
+        	    y /= length;
+        	    z /= length;
+        	    w /= length;
+        	} else {
+        	    // Fallback to identity quaternion if length is too small
+        	    x = 0;
+        	    y = 0;
+        	    z = 0;
+        	    w = 1;
+        	}
+        	
         	
         	// Convert key data to float16 bytes
          	//short xVal =  Float.floatToFloat16(keys.get(i).mValue().x());
@@ -537,12 +546,12 @@ public class VCTMPayload extends ResPayload {
     }
     
     
-    public TimeScale getTimeScaleFromGLTF(float[] timeValues) {
+    public TimeScale getTimeScale(float[] timeValues, float gameTicksPerSecond) {
         if (timeValues == null || timeValues.length < 2) {
             throw new IllegalArgumentException("timeValues array must contain at least two elements.");
         }
 
-        // Calculate time intervals
+        // Compute frame intervals
         List<Float> intervals = new ArrayList<>();
         for (int i = 1; i < timeValues.length; i++) {
             float deltaTime = timeValues[i] - timeValues[i - 1];
@@ -555,29 +564,28 @@ public class VCTMPayload extends ResPayload {
             throw new IllegalArgumentException("timeValues array must contain increasing time values.");
         }
 
-        // Calculate the average interval
+        // Compute average interval (in game ticks)
         float sumIntervals = 0.0f;
         for (float interval : intervals) {
             sumIntervals += interval;
         }
         float averageInterval = sumIntervals / intervals.size();
 
-        // Calculate the effective FPS
-        float fps = 1.0f / averageInterval;
+        // Convert time difference to game frame steps
+        float frameInterval = (averageInterval * gameTicksPerSecond) / 300.0f;
+        frameInterval = Math.round(frameInterval); // Round to nearest integer
 
-        // Convert average interval from seconds to frames
-        float frameInterval = averageInterval * fps;
-        frameInterval= Math.round(frameInterval);
-        
-        if (frameInterval <= 1) return TimeScale.EVERY_1_FRAMES;
-        if (frameInterval <= 5) return TimeScale.EVERY_5_FRAMES;
-        if (frameInterval <= 6) return TimeScale.EVERY_6_FRAMES;
-        if (frameInterval <= 10) return TimeScale.EVERY_10_FRAMES;
-        if (frameInterval <= 12) return TimeScale.EVERY_12_FRAMES;
-        if (frameInterval <= 15) return TimeScale.EVERY_15_FRAMES;
-        if (frameInterval <= 20) return TimeScale.EVERY_20_FRAMES;
+        // Match against predefined TimeScale values
+        if (frameInterval <= 10) return TimeScale.EVERY_1_FRAMES;
+        if (frameInterval <= 50) return TimeScale.EVERY_5_FRAMES;
+        if (frameInterval <= 60) return TimeScale.EVERY_6_FRAMES;
+        if (frameInterval <= 100) return TimeScale.EVERY_10_FRAMES;
+        if (frameInterval <= 120) return TimeScale.EVERY_12_FRAMES;
+        if (frameInterval <= 150) return TimeScale.EVERY_15_FRAMES;
+        if (frameInterval <= 200) return TimeScale.EVERY_20_FRAMES;
         return TimeScale.EVERY_30_FRAMES;
     }
+
 
 
     enum TimeType {
