@@ -223,17 +223,17 @@ public class VCTMPayload extends ResPayload {
         	// Normalize after conversion to prevent SLERP issues
         	float length = (float) Math.sqrt(x * x + y * y + z * z + w * w);
         	if (length > 1e-6f) {
-        	    x /= length;
-        	    y /= length;
-        	    z /= length;
-        	    w /= length;
+        	    float invLength = 1.0f / length;
+        	    x *= invLength;
+        	    y *= invLength;
+        	    z *= invLength;
+        	    w *= invLength;
         	} else {
-        	    // Fallback to identity quaternion if length is too small
         	    x = 0;
         	    y = 0;
         	    z = 0;
         	    w = 1;
-        	}
+        	}       	
         	
         	
         	// Convert key data to float16 bytes
@@ -583,7 +583,8 @@ public class VCTMPayload extends ResPayload {
         if (frameInterval <= 120) return TimeScale.EVERY_12_FRAMES;
         if (frameInterval <= 150) return TimeScale.EVERY_15_FRAMES;
         if (frameInterval <= 200) return TimeScale.EVERY_20_FRAMES;
-        return TimeScale.EVERY_30_FRAMES;
+        if (frameInterval <=300 && frameInterval% 30 == 0) return TimeScale.EVERY_30_FRAMES;
+        return TimeScale.EVERY_20_FRAMES; 
     }
 
 
