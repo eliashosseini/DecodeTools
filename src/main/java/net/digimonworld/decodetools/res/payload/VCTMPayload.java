@@ -125,7 +125,7 @@ public class VCTMPayload extends ResPayload {
             timeValues[i] -= firstTime; // Normalize time so first keyframe is at 0.0
         }
         
-        timeScale = getTimeScale(timeValues,300.0f);
+        timeScale = getTimeScale(timeValues);
         
         InitializeVCTM(3);
 
@@ -196,7 +196,7 @@ public class VCTMPayload extends ResPayload {
         }
         
 
-        timeScale = getTimeScale(timeValues,300.0f);
+        timeScale = getTimeScale(timeValues);
         // Determine the appropriate time scale
         
         InitializeVCTM(4);
@@ -546,46 +546,47 @@ public class VCTMPayload extends ResPayload {
     }
     
     
-    public TimeScale getTimeScale(float[] timeValues, float gameTicksPerSecond) {
+    public TimeScale getTimeScale(float[] timeValues) {
         if (timeValues == null || timeValues.length < 2) {
             throw new IllegalArgumentException("timeValues array must contain at least two elements.");
         }
 
-        // Compute frame intervals
-        List<Float> intervals = new ArrayList<>();
-        for (int i = 1; i < timeValues.length; i++) {
-            float deltaTime = timeValues[i] - timeValues[i - 1];
-            if (deltaTime > 0) {
-                intervals.add(deltaTime);
+        List<Integer> gameTicks = new ArrayList<>();
+        for (float time : timeValues) {
+        	int tickValue = Math.round(time * 0.3f);  
+            gameTicks.add(tickValue);
+        }
+ 
+        List<Integer> intervals = new ArrayList<>();
+        for (int i = 1; i < gameTicks.size(); i++) {
+            int deltaTicks = gameTicks.get(i) - gameTicks.get(i - 1);
+            if (deltaTicks > 0) {
+                intervals.add(deltaTicks);
             }
         }
 
         if (intervals.isEmpty()) {
             throw new IllegalArgumentException("timeValues array must contain increasing time values.");
         }
-
-        // Compute average interval (in game ticks)
-        float sumIntervals = 0.0f;
-        for (float interval : intervals) {
+        int sumIntervals = 0;
+        for (int interval : intervals) {
             sumIntervals += interval;
         }
-        float averageInterval = sumIntervals / intervals.size();
+        int averageInterval = Math.round((float) sumIntervals / intervals.size());
 
-        // Convert time difference to game frame steps
-        float frameInterval = (averageInterval * gameTicksPerSecond) / 300.0f;
-        frameInterval = Math.round(frameInterval); // Round to nearest integer
-
-        // Match against predefined TimeScale values
-        if (frameInterval <= 10) return TimeScale.EVERY_1_FRAMES;
-        if (frameInterval <= 50) return TimeScale.EVERY_5_FRAMES;
-        if (frameInterval <= 60) return TimeScale.EVERY_6_FRAMES;
-        if (frameInterval <= 100) return TimeScale.EVERY_10_FRAMES;
-        if (frameInterval <= 120) return TimeScale.EVERY_12_FRAMES;
-        if (frameInterval <= 150) return TimeScale.EVERY_15_FRAMES;
-        if (frameInterval <= 200) return TimeScale.EVERY_20_FRAMES;
-        if (frameInterval <=300 && frameInterval% 30 == 0) return TimeScale.EVERY_30_FRAMES;
+        // Frame-based TimeScale selection
+        if (averageInterval <= 1) return TimeScale.EVERY_1_FRAMES;
+        if (averageInterval <= 5) return TimeScale.EVERY_5_FRAMES;
+        if (averageInterval <= 6) return TimeScale.EVERY_6_FRAMES;
+        if (averageInterval <= 10) return TimeScale.EVERY_10_FRAMES;
+        if (averageInterval <= 12) return TimeScale.EVERY_12_FRAMES;
+        if (averageInterval <= 15) return TimeScale.EVERY_15_FRAMES;
+        if (averageInterval <= 20) return TimeScale.EVERY_20_FRAMES;
+        if (averageInterval % 30 == 0) return TimeScale.EVERY_30_FRAMES;
         return TimeScale.EVERY_20_FRAMES; 
     }
+
+
 
 
 
