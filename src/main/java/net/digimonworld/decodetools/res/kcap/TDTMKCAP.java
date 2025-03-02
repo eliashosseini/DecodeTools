@@ -184,8 +184,7 @@ public class TDTMKCAP extends AbstractKCAP {
             for (int j = 0; j < nodeAnim.mNumRotationKeys(); j++) {
                 AIQuatKey key = rotationKeys.get(j);
                 rotData.add(key);
-                //System.out.println("Time: " + key.mTime() + ", Rotation: " + key.mValue().x() + ", " + key.mValue().y() + ", " + key.mValue().z() + ", " + key.mValue().w());
-            }
+             }
 
 
             QSTMPayload rotationQSTM = null;
@@ -235,10 +234,10 @@ public class TDTMKCAP extends AbstractKCAP {
             else if (scaData.size() > 0) {
                 if (scaData.size() < 2) {
                         scaleQSTM = new QSTMPayload(this, scaData.get(0));
-                        qstm.add(scaleQSTM);
-                        tdtmEntry.add(new TDTMEntry(TDTMMode.SCALE, (byte)0x10, jointId, qstmCount));
-                        qstmCount++;
-                    }
+                   qstm.add(scaleQSTM);
+                   tdtmEntry.add(new TDTMEntry(TDTMMode.SCALE, (byte)0x10, jointId, qstmCount));
+                   qstmCount++;
+                   }
                 
                 else {
                     scaleQSTM = new QSTMPayload(this, vctmCount);
@@ -252,32 +251,26 @@ public class TDTMKCAP extends AbstractKCAP {
                 }
             }
 
-            
-         // Get the lowest (earliest) keyframe time across all datasets
             float minStartTime = Math.min(
                 Math.min((float) posData.get(0).mTime(), (float) rotData.get(0).mTime()),
                 (float) scaData.get(0).mTime()
             );
 
-            // Get the highest (latest) keyframe time across all datasets
+            // Step 2: Normalize the keyframe times in duration computation
             float maxEndTime = Math.max(
-                Math.max((float) posData.get(posData.size() - 1).mTime(), (float) rotData.get(rotData.size() - 1).mTime()),
+                Math.max((float) posData.get(posData.size() - 1).mTime(), 
+                         (float) rotData.get(rotData.size() - 1).mTime()),
                 (float) scaData.get(scaData.size() - 1).mTime()
             );
 
-            // Normalize all keyframe times so that the first keyframe is at 0
-            for (int x = 0; x < posData.size(); x++) {
-                posData.get(x).mTime(posData.get(x).mTime() - minStartTime);
-            }
-            for (int y = 0; y < rotData.size(); y++) {
-                rotData.get(y).mTime(rotData.get(y).mTime() - minStartTime);
-            }
-            for (int z = 0; z < scaData.size(); z++) {
-                scaData.get(z).mTime(scaData.get(z).mTime() - minStartTime);
-            }
+             float durationInTicks = maxEndTime - minStartTime; // Normalize maxEndTime
 
-            // Properly scaled and rounded endTime to match the 30ms per frame logic
-            endTime = Math.round((maxEndTime - minStartTime) * 300.0f / animation.mTicksPerSecond());
+            double ticksPerSecond = animation.mTicksPerSecond();
+            float durationInSeconds = (float) (durationInTicks / ticksPerSecond);
+
+     
+            // Compute the end time in frames (assuming 33.33 ms per frame)
+            endTime = Math.round(durationInSeconds * 33.3333f) * 10.0f; //Using EVERY_10 as Scale for now
 
             time1 = 0;
             time2 = endTime;
@@ -744,10 +737,25 @@ public class TDTMKCAP extends AbstractKCAP {
         return time3;
     }
     public float getTime4() {
-        return time4
-        		;
+        return time4;
     }
     
+    public void setTime1(float time1) {
+        this.time1 = time1;
+    }
+
+    public void setTime2(float time2) {
+        this.time2 = time2;
+    }
+
+    public void setTime3(float time3) {
+        this.time3 = time3;
+    }
+
+    public void setTime4(float time4) {
+        this.time4 = time4;
+    }
+
     @SuppressWarnings("exports")
 	public List<TDTMEntry> getTdtmEntries() {
         return Collections.unmodifiableList(tdtmEntry);
