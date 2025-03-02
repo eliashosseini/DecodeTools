@@ -1,9 +1,12 @@
 package net.digimonworld.decodetools.res.payload;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import org.lwjgl.assimp.AIQuatKey;
@@ -65,7 +68,7 @@ public class VCTMPayload extends ResPayload {
     }
     
     
-    
+    //Read
     public VCTMPayload(Access source, int dataStart, AbstractKCAP parent) {
         super(parent);
         long start = source.getPosition();
@@ -111,44 +114,31 @@ public class VCTMPayload extends ResPayload {
     // Position/Scale (3 Values)
     public VCTMPayload(AbstractKCAP parent, List<AIVectorKey> keys, float ticks, float scale) {
         super(parent);
-        int newTime=0;
         numEntries = keys.size();    
        
         float[] timeValues = new float[numEntries];
         for (int i = 0; i < numEntries; i++) {
-            timeValues[i] = (float) keys.get(i).mTime();
-         
+            timeValues[i] = (float) keys.get(i).mTime();         
         }                   
-        
+
         float firstTime = timeValues[0]; // Get the first keyframe time
         for (int i = 0; i < timeValues.length; i++) {
             timeValues[i] -= firstTime; // Normalize time so first keyframe is at 0.0
         }
-        
-        timeScale = getTimeScale(timeValues);
-        
+        // timeScale = getTimeScale(timeValues);
+
+        timeScale = TimeScale.EVERY_10_FRAMES; // Match Vanilla
+    
         InitializeVCTM(3);
 
         data1 = new VCTMEntry[numEntries];
-        data2 = new VCTMEntry[numEntries];
-                  
-        float maxFrameTime = 0;  // Initialize max time
-
-        for (float time : timeValues) {
-            maxFrameTime = Math.max(maxFrameTime, time);
-        }
-
+        data2 = new VCTMEntry[numEntries];                  
+        
         for (int i = 0; i < numEntries; i++) {       	
-        newTime = (int) (Math.round(timeValues[i] * 300.0f / ticks)/timeScale.getValue());
-   
-       
-         byte[] timeBytes = { (byte) (newTime)};
-       	 data1[i] = new VCTMEntry(timeBytes);
+        int newTime = (int)((timeValues[i] / ticks) * 33.3333f);       
+        byte[] timeBytes = { (byte) (newTime)};
+       	data1[i] = new VCTMEntry(timeBytes);
        } 
-        for (int i = 1; i < timeValues.length; i++) {
-            System.out.println("Frame Interval: " + (timeValues[i] - timeValues[i - 1]));
-        }
-
         
         for (int i = 0; i < numEntries; i++) {
             // Convert key data to float16 bytes
@@ -172,12 +162,9 @@ public class VCTMPayload extends ResPayload {
                     .putFloat(y)
                     .putFloat(z)
                     .array();
-            data2[i] = new VCTMEntry(allBytes);
-            
-            
-        }
-            
-    }
+            data2[i] = new VCTMEntry(allBytes);            
+             }            
+    		}
 
     
     // Rotation
@@ -189,14 +176,16 @@ public class VCTMPayload extends ResPayload {
         float[] timeValues = new float[numEntries];
         for (int i = 0; i < numEntries; i++) {
             timeValues[i] = (float) keys.get(i).mTime();
-        }
+        }      
+        
         float firstTime = timeValues[0]; // Get the first keyframe time
         for (int i = 0; i < timeValues.length; i++) {
             timeValues[i] -= firstTime; // Normalize time so first keyframe is at 0.0
         }
-        
+        //      timeScale = getTimeScale(timeValues);
 
-        timeScale = getTimeScale(timeValues);
+        timeScale = TimeScale.EVERY_10_FRAMES; // Match Vanilla.
+
         // Determine the appropriate time scale
         
         InitializeVCTM(4);
@@ -206,36 +195,19 @@ public class VCTMPayload extends ResPayload {
         
         for (int i = 0; i < numEntries; i++) {       	
      
-        int newTime = (int) (Math.round(timeValues[i] * 300.0f / ticks)/timeScale.getValue());
-            
+      	int newTime = (int)((timeValues[i] / ticks) * 33.3333f); //33.33ms =30 FPS
+           
         byte[] timeBytes = { (byte) (newTime)};
         data1[i] = new VCTMEntry(timeBytes);
         }                         
 
-        for (int i = 0; i < numEntries; i++) {
-       
+        for (int i = 0; i < numEntries; i++) {       
 
         	float x= (keys.get(i).mValue().x());
          	float y= (keys.get(i).mValue().y());
          	float z= (keys.get(i).mValue().z());
         	float w= (keys.get(i).mValue().w());
-        	
-        	// Normalize after conversion to prevent SLERP issues
-        	float length = (float) Math.sqrt(x * x + y * y + z * z + w * w);
-        	if (length > 1e-6f) {
-        	    float invLength = 1.0f / length;
-        	    x *= invLength;
-        	    y *= invLength;
-        	    z *= invLength;
-        	    w *= invLength;
-        	} else {
-        	    x = 0;
-        	    y = 0;
-        	    z = 0;
-        	    w = 1;
-        	}       	
-        	
-        	
+        	        	
         	// Convert key data to float16 bytes
          	//short xVal =  Float.floatToFloat16(keys.get(i).mValue().x());
          	//short yVal =  Float.floatToFloat16(keys.get(i).mValue().y());
@@ -553,7 +525,7 @@ public class VCTMPayload extends ResPayload {
 
         List<Integer> gameTicks = new ArrayList<>();
         for (float time : timeValues) {
-        	int tickValue = Math.round(time * 0.3f);  
+        	int tickValue = Math.round(time * 0.33f);  
             gameTicks.add(tickValue);
         }
  
@@ -582,7 +554,7 @@ public class VCTMPayload extends ResPayload {
         if (averageInterval <= 12) return TimeScale.EVERY_12_FRAMES;
         if (averageInterval <= 15) return TimeScale.EVERY_15_FRAMES;
         if (averageInterval <= 20) return TimeScale.EVERY_20_FRAMES;
-        if (averageInterval % 30 == 0) return TimeScale.EVERY_30_FRAMES;
+        if (averageInterval <=30 && averageInterval % 30 == 0) return TimeScale.EVERY_30_FRAMES;
         return TimeScale.EVERY_20_FRAMES; 
     }
 
