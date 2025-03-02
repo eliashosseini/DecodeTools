@@ -135,33 +135,35 @@ public class VCTMPayload extends ResPayload {
         data2 = new VCTMEntry[numEntries];                  
         
         for (int i = 0; i < numEntries; i++) {       	
-        int newTime = (int)((timeValues[i] / ticks) * 33.3333f);       
+        	float preciseTime = (timeValues[i] / ticks) * 33.3333f;
+        	int newTime = (int) (preciseTime + 0.5f);  // Avoids truncation issues
+
         byte[] timeBytes = { (byte) (newTime)};
        	data1[i] = new VCTMEntry(timeBytes);
        } 
         
         for (int i = 0; i < numEntries; i++) {
             // Convert key data to float16 bytes
-            //short xVal =  Float.floatToFloat16(keys.get(i).mValue().x());
-            //short yVal =  Float.floatToFloat16(keys.get(i).mValue().y());
-            //short zVal =  Float.floatToFloat16(keys.get(i).mValue().z());
+            short xVal =  toFloat16(keys.get(i).mValue().x());
+            short yVal =  toFloat16(keys.get(i).mValue().y());
+            short zVal =  toFloat16(keys.get(i).mValue().z());
 
-            //byte[] xBytes = { (byte) (xVal), (byte) (xVal >> 8) };
-            //byte[] yBytes = { (byte) (yVal), (byte) (yVal >> 8) };
-            //byte[] zBytes = { (byte) (zVal), (byte) (zVal >> 8) };
+            byte[] xBytes = { (byte) (xVal), (byte) (xVal >> 8) };
+            byte[] yBytes = { (byte) (yVal), (byte) (yVal >> 8) };
+            byte[] zBytes = { (byte) (zVal), (byte) (zVal >> 8) };
 
-            //byte[] allBytes = {xBytes[0], xBytes[1], yBytes[0], yBytes[1], zBytes[0], zBytes[1] };
+            byte[] allBytes = {xBytes[0], xBytes[1], yBytes[0], yBytes[1], zBytes[0], zBytes[1] };
 
-        	float x= (keys.get(i).mValue().x());
-         	float y= (keys.get(i).mValue().y());
-         	float z= (keys.get(i).mValue().z());                
+        	//float x= (keys.get(i).mValue().x());
+         	//float y= (keys.get(i).mValue().y());
+         	//float z= (keys.get(i).mValue().z());                
          
-         	byte[] allBytes = ByteBuffer.allocate(3* Float.BYTES)
-                    .order(ByteOrder.LITTLE_ENDIAN) 
-                    .putFloat(x)
-                    .putFloat(y)
-                    .putFloat(z)
-                    .array();
+         //	byte[] allBytes = ByteBuffer.allocate(3* Float.BYTES)
+          //          .order(ByteOrder.LITTLE_ENDIAN) 
+          //          .putFloat(x)
+         //          .putFloat(y)
+         //           .putFloat(z)
+         //           .array();
             data2[i] = new VCTMEntry(allBytes);            
              }            
     		}
@@ -195,7 +197,9 @@ public class VCTMPayload extends ResPayload {
         
         for (int i = 0; i < numEntries; i++) {       	
      
-      	int newTime = (int)((timeValues[i] / ticks) * 33.3333f); //33.33ms =30 FPS
+        	float preciseTime = (timeValues[i] / ticks) * 33.3333f;
+        	int newTime = (int) (preciseTime + 0.5f);  // Avoids truncation issues
+
            
         byte[] timeBytes = { (byte) (newTime)};
         data1[i] = new VCTMEntry(timeBytes);
@@ -203,38 +207,55 @@ public class VCTMPayload extends ResPayload {
 
         for (int i = 0; i < numEntries; i++) {       
 
-        	float x= (keys.get(i).mValue().x());
-         	float y= (keys.get(i).mValue().y());
-         	float z= (keys.get(i).mValue().z());
-        	float w= (keys.get(i).mValue().w());
+        	//float x= (keys.get(i).mValue().x());
+         	//float y= (keys.get(i).mValue().y());
+         	//float z= (keys.get(i).mValue().z());
+        	//float w= (keys.get(i).mValue().w());
         	        	
         	// Convert key data to float16 bytes
-         	//short xVal =  Float.floatToFloat16(keys.get(i).mValue().x());
-         	//short yVal =  Float.floatToFloat16(keys.get(i).mValue().y());
-         	//short zVal =  Float.floatToFloat16(keys.get(i).mValue().z());
-            //short wVal =  Float.floatToFloat16(keys.get(i).mValue().w());
+         	short xVal =  toFloat16(keys.get(i).mValue().x());
+         	short yVal =  toFloat16(keys.get(i).mValue().y());
+         	short zVal =  toFloat16(keys.get(i).mValue().z());
+            short wVal =  toFloat16(keys.get(i).mValue().w());
 
-            //byte[] xBytes = { (byte) (xVal), (byte) (xVal >> 8) };
-            //byte[] yBytes = { (byte) (yVal), (byte) (yVal >> 8) };
-            //byte[] zBytes = { (byte) (zVal), (byte) (zVal >> 8) };
-            //byte[] wBytes = { (byte) (wVal), (byte) (wVal >> 8) };
+            byte[] xBytes = { (byte) (xVal), (byte) (xVal >> 8) };
+            byte[] yBytes = { (byte) (yVal), (byte) (yVal >> 8) };
+            byte[] zBytes = { (byte) (zVal), (byte) (zVal >> 8) };
+            byte[] wBytes = { (byte) (wVal), (byte) (wVal >> 8) };
 
-            //byte[] allBytes = {xBytes[0], xBytes[1], yBytes[0], yBytes[1], zBytes[0], zBytes[1], wBytes[0], wBytes[1] };
+            byte[] allBytes = {xBytes[0], xBytes[1], yBytes[0], yBytes[1], zBytes[0], zBytes[1], wBytes[0], wBytes[1] };
        
-         	byte[] allBytes = ByteBuffer.allocate(4* Float.BYTES)
-                    .order(ByteOrder.LITTLE_ENDIAN) 
-                    .putFloat(x)
-                    .putFloat(y)
-                    .putFloat(z)
-                    .putFloat(w)
-                    .array();
+         	//byte[] allBytes = ByteBuffer.allocate(4* Float.BYTES)
+            //        .order(ByteOrder.LITTLE_ENDIAN) 
+              //      .putFloat(x)
+                //    .putFloat(y)
+                  //  .putFloat(z)
+                    //.putFloat(w)
+                   // .array();
             data2[i] = new VCTMEntry(allBytes);
         }
             
     }
 
+    public static short toFloat16(float value) {
+        int intBits = Float.floatToIntBits(value);
+        int sign = (intBits >>> 16) & 0x8000; 
+        int exp = ((intBits >>> 23) & 0xFF) - (127 - 15);
+        int mantissa = intBits & 0x007FFFFF;
+        
+        if (exp <= 0) {
+            // Underflow to zero
+            return (short) sign;
+        } else if (exp >= 31) {
+            // Overflow to max float16 value
+            return (short) (sign | 0x7C00);
+        } else {
+            return (short) (sign | (exp << 10) | (mantissa >>> 13));
+        }
+    }
+
     private void InitializeVCTM(int components) {
-        coordSize = (short)(4*components); // byte length of coord values
+        coordSize = (short)(2*components); // byte length of coord values
         entrySize = 1; // byte length of time values
         entriesStart = 0x20;
         coordStart = Utils.align(entriesStart + numEntries * entrySize, 0x4);
@@ -251,7 +272,7 @@ public class VCTMPayload extends ResPayload {
         }
         
         componentCount = (byte)(components & 0xff);
-        componentType = ComponentType.FLOAT32;
+        componentType = ComponentType.FLOAT16;
         
         timeType = TimeType.UINT8;
         
