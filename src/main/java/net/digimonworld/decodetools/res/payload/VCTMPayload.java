@@ -126,7 +126,7 @@ public class VCTMPayload extends ResPayload {
             timeValues[i] -= firstTime; // Normalize time so first keyframe is at 0.0
         }
         // timeScale = getTimeScale(timeValues);
-
+        
         timeScale = TimeScale.EVERY_10_FRAMES; // Match Vanilla
     
         InitializeVCTM(3);
@@ -134,16 +134,13 @@ public class VCTMPayload extends ResPayload {
         data1 = new VCTMEntry[numEntries];
         data2 = new VCTMEntry[numEntries];                  
         
-        for (int i = 0; i < numEntries; i++) {       	
-        	float preciseTime = (timeValues[i] / ticks) * 33.3333f;
-        	int newTime = (int) (preciseTime + 0.5f);  // Avoids truncation issues
-
-        byte[] timeBytes = { (byte) (newTime)};
-       	data1[i] = new VCTMEntry(timeBytes);
+        for (int i = 0; i < numEntries; i++) {               
+      	byte[] timeBytes = { (byte)Math.round((timeValues[i] / ticks) * 33.3333f) };   
+        data1[i] = new VCTMEntry(timeBytes);
        } 
         
         for (int i = 0; i < numEntries; i++) {
-            // Convert key data to float16 bytes
+
             short xVal =  toFloat16(keys.get(i).mValue().x());
             short yVal =  toFloat16(keys.get(i).mValue().y());
             short zVal =  toFloat16(keys.get(i).mValue().z());
@@ -154,22 +151,12 @@ public class VCTMPayload extends ResPayload {
 
             byte[] allBytes = {xBytes[0], xBytes[1], yBytes[0], yBytes[1], zBytes[0], zBytes[1] };
 
-        	//float x= (keys.get(i).mValue().x());
-         	//float y= (keys.get(i).mValue().y());
-         	//float z= (keys.get(i).mValue().z());                
-         
-         //	byte[] allBytes = ByteBuffer.allocate(3* Float.BYTES)
-          //          .order(ByteOrder.LITTLE_ENDIAN) 
-          //          .putFloat(x)
-         //          .putFloat(y)
-         //           .putFloat(z)
-         //           .array();
             data2[i] = new VCTMEntry(allBytes);            
              }            
     		}
 
     
-    // Rotation
+ // Rotation
     public VCTMPayload(AbstractKCAP parent, List<AIQuatKey> keys, float ticks) {
         super(parent);
         
@@ -184,58 +171,65 @@ public class VCTMPayload extends ResPayload {
         for (int i = 0; i < timeValues.length; i++) {
             timeValues[i] -= firstTime; // Normalize time so first keyframe is at 0.0
         }
-        //      timeScale = getTimeScale(timeValues);
-
-        timeScale = TimeScale.EVERY_10_FRAMES; // Match Vanilla.
-
-        // Determine the appropriate time scale
-        
+        // Use vanilla time scale (EVERY_10_FRAMES)
+        timeScale = TimeScale.EVERY_10_FRAMES; 
+         
         InitializeVCTM(4);
 
         data1 = new VCTMEntry[numEntries];
         data2 = new VCTMEntry[numEntries];
         
+        // Process time values as before.
         for (int i = 0; i < numEntries; i++) {       	
-     
-        	float preciseTime = (timeValues[i] / ticks) * 33.3333f;
-        	int newTime = (int) (preciseTime + 0.5f);  // Avoids truncation issues
-
-           
-        byte[] timeBytes = { (byte) (newTime)};
-        data1[i] = new VCTMEntry(timeBytes);
+            byte[] timeBytes = { (byte)Math.round((timeValues[i] / ticks) * 33.3333f) };   
+            data1[i] = new VCTMEntry(timeBytes);
         }                         
 
+        // Build a temporary array of quaternions as floats
+        float[][] quats = new float[numEntries][4];
         for (int i = 0; i < numEntries; i++) {       
-
-        	//float x= (keys.get(i).mValue().x());
-         	//float y= (keys.get(i).mValue().y());
-         	//float z= (keys.get(i).mValue().z());
-        	//float w= (keys.get(i).mValue().w());
-        	        	
-        	// Convert key data to float16 bytes
-         	short xVal =  toFloat16(keys.get(i).mValue().x());
-         	short yVal =  toFloat16(keys.get(i).mValue().y());
-         	short zVal =  toFloat16(keys.get(i).mValue().z());
-            short wVal =  toFloat16(keys.get(i).mValue().w());
+            AIQuatKey key = keys.get(i);
+            quats[i][0] = key.mValue().x();
+            quats[i][1] = key.mValue().y();
+            quats[i][2] = key.mValue().z();
+            quats[i][3] = key.mValue().w();
+        }
+        
+        // Ensure consistent quaternion orientation:
+        // For each keyframe (from the second onward), check the dot product with the previous keyframe.
+        // If negative, flip the quaternion.
+        for (int i = 1; i < numEntries; i++) {
+            float dot = quats[i-1][0] * quats[i][0] +
+                        quats[i-1][1] * quats[i][1] +
+                        quats[i-1][2] * quats[i][2] +
+                        quats[i-1][3] * quats[i][3];
+            if (dot < 0) {
+                quats[i][0] = -quats[i][0];
+                quats[i][1] = -quats[i][1];
+                quats[i][2] = -quats[i][2];
+                quats[i][3] = -quats[i][3];
+            }
+        }
+        
+        // Convert the adjusted quaternions to half-float (FLOAT16) and pack them into bytes.
+        for (int i = 0; i < numEntries; i++) {       
+            short xVal = toFloat16(quats[i][0]);
+            short yVal = toFloat16(quats[i][1]);
+            short zVal = toFloat16(quats[i][2]);
+            short wVal = toFloat16(quats[i][3]);
 
             byte[] xBytes = { (byte) (xVal), (byte) (xVal >> 8) };
             byte[] yBytes = { (byte) (yVal), (byte) (yVal >> 8) };
             byte[] zBytes = { (byte) (zVal), (byte) (zVal >> 8) };
             byte[] wBytes = { (byte) (wVal), (byte) (wVal >> 8) };
 
-            byte[] allBytes = {xBytes[0], xBytes[1], yBytes[0], yBytes[1], zBytes[0], zBytes[1], wBytes[0], wBytes[1] };
-       
-         	//byte[] allBytes = ByteBuffer.allocate(4* Float.BYTES)
-            //        .order(ByteOrder.LITTLE_ENDIAN) 
-              //      .putFloat(x)
-                //    .putFloat(y)
-                  //  .putFloat(z)
-                    //.putFloat(w)
-                   // .array();
+            byte[] allBytes = {xBytes[0], xBytes[1], yBytes[0], yBytes[1],
+                               zBytes[0], zBytes[1], wBytes[0], wBytes[1]};
+     
             data2[i] = new VCTMEntry(allBytes);
         }
-            
     }
+
 
     public static short toFloat16(float value) {
         int intBits = Float.floatToIntBits(value);

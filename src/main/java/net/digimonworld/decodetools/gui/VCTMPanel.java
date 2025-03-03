@@ -90,7 +90,7 @@ public class VCTMPanel extends PayloadPanel {
                 switch (componentType) {
                     case "FLOAT16":
                         short float16Bits = ByteBuffer.wrap(componentBytes).order(ByteOrder.LITTLE_ENDIAN).getShort();
-                        rawValue = String.format("%.6f", Float.float16ToFloat(float16Bits));
+                        rawValue = String.format("%.10f", Float.float16ToFloat(float16Bits));
                         break;
                     case "BYTE":
                         rawValue = String.valueOf(componentBytes[0]);
@@ -102,7 +102,7 @@ public class VCTMPanel extends PayloadPanel {
                     case "FLOAT32":
                         float floatValue = ByteBuffer.wrap(componentBytes).order(ByteOrder.LITTLE_ENDIAN).getFloat();
                      //   rawValue = String.valueOf(floatValue);
-                        rawValue = String.format("%.6f", floatValue);  // Shows up to 6 decimal places, no scientific notation
+                        rawValue = String.format("%.10f", floatValue);  // Shows up to 6 decimal places, no scientific notation
 
                         break;
                     default:
