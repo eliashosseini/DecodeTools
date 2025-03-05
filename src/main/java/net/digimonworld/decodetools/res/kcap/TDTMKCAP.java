@@ -221,7 +221,7 @@ public class TDTMKCAP extends AbstractKCAP {
             QSTMPayload scaleQSTM = null;
             VCTMPayload scaleVCTM = null;
 
-            if (jointId == 0) {
+            if (nodes.get((int)jointId).mName().dataString().contains("root")) { // root node
                 List<Float> scales = new ArrayList<Float>();
                 for (int j = 0; j < 3; j++) {
                     scales.add(scaleFactor);
