@@ -22,7 +22,7 @@ public class VCTMPanel extends PayloadPanel {
         setSelectedFile(selected);
 
         String[] columnNames = {
-        	    "Frame Index", "Time", "Component Count", 
+        	    "Frame Index", "Time", "Time Scale","Component Count", 
         	    "Component Type", "Interpolation", 
         	    "X", "Y", "Z", "W"
         	};
@@ -68,7 +68,8 @@ public class VCTMPanel extends PayloadPanel {
         tableModel.setRowCount(0); // Clear table
 
         // Retrieve frame times
-        float[] frameTimes = vctm.getFrameList();
+        float[] frameTimes = vctm.getFrameTimes();
+
         int numEntries = frameTimes.length;
         int componentCount = vctm.getComponentCount();
         String componentType = vctm.getComponentType().toString();
@@ -89,7 +90,7 @@ public class VCTMPanel extends PayloadPanel {
                 switch (componentType) {
                     case "FLOAT16":
                         short float16Bits = ByteBuffer.wrap(componentBytes).order(ByteOrder.LITTLE_ENDIAN).getShort();
-                        rawValue = String.format("%.6f", Float.float16ToFloat(float16Bits));
+                        rawValue = String.format("%.10f", Float.float16ToFloat(float16Bits));
                         break;
                     case "BYTE":
                         rawValue = String.valueOf(componentBytes[0]);
@@ -100,7 +101,9 @@ public class VCTMPanel extends PayloadPanel {
                         break;
                     case "FLOAT32":
                         float floatValue = ByteBuffer.wrap(componentBytes).order(ByteOrder.LITTLE_ENDIAN).getFloat();
-                        rawValue = String.valueOf(floatValue);
+                     //   rawValue = String.valueOf(floatValue);
+                        rawValue = String.format("%.10f", floatValue);  // Shows up to 6 decimal places, no scientific notation
+
                         break;
                     default:
                         rawValue = "UNKNOWN";
@@ -118,6 +121,7 @@ public class VCTMPanel extends PayloadPanel {
             tableModel.addRow(new Object[]{
                 i,                                    // Frame Index
                 frameTimes[i], 						  // Time
+                vctm.getTimeScale(),				  //Time Scale
                 componentCount,                       // Component Count
                 componentType,                        // Component Type
                 interpolation,                        // Interpolation

@@ -1,5 +1,7 @@
 package net.digimonworld.decodetools.res.payload;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -40,9 +42,13 @@ public class QSTMPayload extends ResPayload {
 
         List<Float> vals = new ArrayList<Float>();
 
-        vals.add(key.mValue().x());
-        vals.add(key.mValue().y());
-        vals.add(key.mValue().z());
+        float valx=roundTo6DecimalPlaces(key.mValue().x());
+        float valy=roundTo6DecimalPlaces(key.mValue().y());
+        float valz=roundTo6DecimalPlaces(key.mValue().z());
+        vals.add(valx);
+        vals.add(valy);
+        vals.add(valz);
+
 
         QSTMEntry qstmEntry = new QSTM00Entry(vals);
 
@@ -56,10 +62,16 @@ public class QSTMPayload extends ResPayload {
 
         List<Float> vals = new ArrayList<Float>();
 
-        vals.add(key.mValue().x());
-        vals.add(key.mValue().y());
-        vals.add(key.mValue().z());
-        vals.add(key.mValue().w());
+        float valx=roundTo6DecimalPlaces(key.mValue().x());
+        float valy=roundTo6DecimalPlaces(key.mValue().y());
+        float valz=roundTo6DecimalPlaces(key.mValue().z());
+        float valw=roundTo6DecimalPlaces(key.mValue().w());
+     
+        vals.add(valx);
+        vals.add(valy);
+        vals.add(valz);
+        vals.add(valw);
+      
 
         QSTMEntry qstmEntry = new QSTM00Entry(vals);
 
@@ -111,5 +123,11 @@ public class QSTMPayload extends ResPayload {
         dest.writeShort((short) entries.size());
         
         entries.forEach(a -> a.writeKCAP(dest));
+    }
+    
+    private static float roundTo6DecimalPlaces(float value) {
+        return BigDecimal.valueOf(value)
+                         .setScale(6, RoundingMode.HALF_UP)
+                         .floatValue();
     }
 }

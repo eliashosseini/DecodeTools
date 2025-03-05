@@ -113,13 +113,14 @@ public class TDTMKCAP extends AbstractKCAP {
             Main.LOGGER.warning(() -> "Final position for TDTM KCAP does not match the header. Current: " + source.getPosition() + " Expected: " + expectedEnd);
     }
 
+    
+    //Write TDTM
     public TDTMKCAP(AbstractKCAP parent, AIAnimation animation, List<AINode> nodes, float scaleFactor) {
         super(parent, 0);
 
         float endTime = 0;
         float startTime = Float.MAX_VALUE;
-        float timeScale = 1;
-
+        
         int vctmCount = 0;
         int qstmCount = 0;
 
@@ -149,34 +150,10 @@ public class TDTMKCAP extends AbstractKCAP {
             //get Position Keyframes
             AIVectorKey.Buffer positionKeys = nodeAnim.mPositionKeys();
 
-            // float prevX = positionKeys.get(0).mValue().x();
-            // float prevY = positionKeys.get(0).mValue().y();
-            // float prevZ = positionKeys.get(0).mValue().z();
-
-            // boolean sameX = true;
-            // boolean sameY = true;
-            // boolean sameZ = true;
-
             for (int j = 0; j < nodeAnim.mNumPositionKeys(); j++) {
                 AIVectorKey key = positionKeys.get(j);
                 posData.add(key);
 
-                // if (prevX != key.mValue().x()) sameX = false;
-                // if (prevY != key.mValue().y()) sameY = false;
-                // if (prevZ != key.mValue().z()) sameZ = false;
-
-                // prevX = key.mValue().x();
-                // prevY = key.mValue().y();
-                // prevZ = key.mValue().z();
-            }
-
-            // check for identical first and last key when there is only two points
-            if (posData.size() == 2) {
-                if (posData.get(0).mValue().x() == posData.get(posData.size()-1).mValue().x() &&
-                posData.get(0).mValue().y() == posData.get(posData.size()-1).mValue().y() &&
-                posData.get(0).mValue().z() == posData.get(posData.size()-1).mValue().z()) {
-                    posData.removeLast();
-                }
             }
 
             QSTMPayload positionQSTM = null;
@@ -184,14 +161,11 @@ public class TDTMKCAP extends AbstractKCAP {
 
             if (posData.size() > 0) {
                 if (posData.size() < 2) {
-                    // Ignore (0, 0, 0) positions
-                    if (posData.get(0).mValue().x() != 0 || posData.get(0).mValue().y() != 0 ||
-                    posData.get(0).mValue().z() != 0) {
                         positionQSTM = new QSTMPayload(this, posData.get(0));
                         qstm.add(positionQSTM);
                         tdtmEntry.add(new TDTMEntry(TDTMMode.TRANSLATION, (byte)0x10, jointId, qstmCount));
                         qstmCount++;
-                    }
+                    
                 }
                 else {
                     positionQSTM = new QSTMPayload(this, vctmCount);
@@ -210,32 +184,21 @@ public class TDTMKCAP extends AbstractKCAP {
             for (int j = 0; j < nodeAnim.mNumRotationKeys(); j++) {
                 AIQuatKey key = rotationKeys.get(j);
                 rotData.add(key);
-                //System.out.println("Time: " + key.mTime() + ", Rotation: " + key.mValue().x() + ", " + key.mValue().y() + ", " + key.mValue().z() + ", " + key.mValue().w());
-            }
+             }
 
-            // check for identical first and last key
-            if (rotData.size() == 2) {
-                if (rotData.get(0).mValue().x() == rotData.get(rotData.size()-1).mValue().x() &&
-                rotData.get(0).mValue().y() == rotData.get(rotData.size()-1).mValue().y() &&
-                rotData.get(0).mValue().z() == rotData.get(rotData.size()-1).mValue().z()) {
-                    rotData.removeLast();
-                }
-            }
 
             QSTMPayload rotationQSTM = null;
             VCTMPayload rotationVCTM = null;
 
             if (rotData.size() > 0) {
                 if (rotData.size() < 2) {
-                    // Ignore (0, 0, 0, w) rotations
-                    if (rotData.get(0).mValue().x() != 0 || rotData.get(0).mValue().y() != 0 ||
-                    rotData.get(0).mValue().z() != 0) {
+
                         rotationQSTM = new QSTMPayload(this, rotData.get(0));
                         qstm.add(rotationQSTM);
                         tdtmEntry.add(new TDTMEntry(TDTMMode.ROTATION, (byte)0x10, jointId, qstmCount));
                         qstmCount++;
-                    }
-                }
+                        }
+                
                 else {
                     rotationQSTM = new QSTMPayload(this, vctmCount);
                     qstm.add(rotationQSTM);
@@ -253,16 +216,6 @@ public class TDTMKCAP extends AbstractKCAP {
             for (int j = 0; j < nodeAnim.mNumScalingKeys(); j++) {
                 AIVectorKey key = scalingKeys.get(j);
                 scaData.add(key);
-                //System.out.println("Time: " + key.mTime() + ", Scale: " + key.mValue().x() + ", " + key.mValue().y() + ", " + key.mValue().z());
-            }
-
-            // check for identical first and last key
-            if (scaData.size() == 2) {
-                if (scaData.get(0).mValue().x() == scaData.get(scaData.size()-1).mValue().x() &&
-                scaData.get(0).mValue().y() == scaData.get(scaData.size()-1).mValue().y() &&
-                scaData.get(0).mValue().z() == scaData.get(scaData.size()-1).mValue().z()) {
-                    scaData.removeLast();
-                }
             }
 
             QSTMPayload scaleQSTM = null;
@@ -280,15 +233,12 @@ public class TDTMKCAP extends AbstractKCAP {
             }
             else if (scaData.size() > 0) {
                 if (scaData.size() < 2) {
-                    // Ignore (1, 1, 1) scales
-                    if (scaData.get(0).mValue().x() != 1 || scaData.get(0).mValue().y() != 1 ||
-                    scaData.get(0).mValue().z() != 1) {
                         scaleQSTM = new QSTMPayload(this, scaData.get(0));
-                        qstm.add(scaleQSTM);
-                        tdtmEntry.add(new TDTMEntry(TDTMMode.SCALE, (byte)0x10, jointId, qstmCount));
-                        qstmCount++;
-                    }
-                }
+                   qstm.add(scaleQSTM);
+                   tdtmEntry.add(new TDTMEntry(TDTMMode.SCALE, (byte)0x10, jointId, qstmCount));
+                   qstmCount++;
+                   }
+                
                 else {
                     scaleQSTM = new QSTMPayload(this, vctmCount);
                     qstm.add(scaleQSTM);
@@ -301,29 +251,33 @@ public class TDTMKCAP extends AbstractKCAP {
                 }
             }
 
-            // get lowest time from each data set
-            // startTime = (float)Math.min(startTime, posData.get(0).mTime());
-            // startTime = (float)Math.min(startTime, rotData.get(0).mTime());
-            // startTime = (float)Math.min(startTime, scaData.get(0).mTime());
-            
-            // get highest time from each data set
-            if (posData.size() > 1)
-                endTime = (float)Math.max(endTime, VCTMPayload.roundTime(posData.get(posData.size()-1).mTime(), posData.get(1).mTime()));
-            if (rotData.size() > 1)
-                endTime = (float)Math.max(endTime, VCTMPayload.roundTime(rotData.get(rotData.size()-1).mTime(), rotData.get(1).mTime()));
-            if (scaData.size() > 1)
-                endTime = (float)Math.max(endTime, VCTMPayload.roundTime(scaData.get(scaData.size()-1).mTime(), scaData.get(1).mTime()));
-             
+            float minStartTime = Math.min(
+                Math.min((float) posData.get(0).mTime(), (float) rotData.get(0).mTime()),
+                (float) scaData.get(0).mTime()
+            );
+
+            // Step 2: Normalize the keyframe times in duration computation
+            float maxEndTime = Math.max(
+                Math.max((float) posData.get(posData.size() - 1).mTime(), 
+                         (float) rotData.get(rotData.size() - 1).mTime()),
+                (float) scaData.get(scaData.size() - 1).mTime()
+            );
+
+             float durationInTicks = maxEndTime - minStartTime; // Normalize maxEndTime
+
+            double ticksPerSecond = animation.mTicksPerSecond();
+            float durationInSeconds = (float) (durationInTicks / ticksPerSecond);
+
+     
+            // Compute the end time in frames (assuming 33.33 ms per frame)
+            endTime = Math.round(durationInSeconds * 33.3333f) * 10.0f; //Using EVERY_10 as Scale for now
+
+            time1 = 0;
+            time2 = endTime;
+            time3 = time1;
+            time4 = time2;
+
         }
-
-        time1 = 0;
-        time2 = endTime;
-        time3 = time1;
-        time4 = time2;
-    }
-
-    public static float roundToNearestHundred(float value) {
-        return Math.round(value / 100.0f) * 100.0f;
     }
 
     public void exportGLTFAnimation(GlTF instance, int index) {
@@ -351,22 +305,16 @@ public class TDTMKCAP extends AbstractKCAP {
             default: name = "anim_" + index; break;
         }
 
-        // System.out.println("Animation: " + name);
-
         float animDuration = (time2-time1)/333;
 
-        // Each TDTM Entry can only map one joint, contains translation OR rotation OR scale
         for (int i = 0; i < tdtmEntry.size(); i++) {
             TDTMEntry tEntry = tdtmEntry.get(i);
 
-            // only handle joint animations
             if (tEntry.transformType != 0x10) {
                 continue;
             }
 
             int jointId = tEntry.jointId;
-
-            // System.out.println("Joint: " + jointId + ", " + tEntry.mode);
 
             // only handle joints in range that don't have defined matrices
             if (jointId >= instance.getNodes().size() || instance.getNodes().get(jointId).getMatrix() != null) {
@@ -393,9 +341,7 @@ public class TDTMKCAP extends AbstractKCAP {
                 QSTMEntry qEntry = qstmPayload.getEntries().get(j);
                 QSTMEntryType type = qEntry.getType();
 
-                // if (name == "idle") System.out.println("QSTM Type: " + type.getId());
-
-                switch(type.getId()) {
+                 switch(type.getId()) {
                     case 0:
                         QSTM00Entry qstm00Entry = (QSTM00Entry)qEntry;
 
@@ -484,12 +430,14 @@ public class TDTMKCAP extends AbstractKCAP {
 
                         VCTMPayload vctmPayload = vctm.get(qstm02Entry.getVctmId());
 
-                        float[] qstmTimes = vctmPayload.getFrameList();
+                        float[] qstmTimes = vctmPayload.getFrameTimes();
                         float[] timestamps = new float[qstmTimes.length];
                         
+                        float duration = time2 - time1;
+                         
                         for (int k = 0; k < qstmTimes.length; k++) {
-                            timestamps[k] = animDuration*((qstmTimes[k])/qstmTimes[qstmTimes.length-1]);
-                        }
+                        	  timestamps[k] = animDuration * (qstmTimes[k] / duration);
+                                   }
                         for (int k = 0; k < timestamps.length; k++) {
                             if (!times.contains(timestamps[k]) && timestamps[k] <= animDuration) {
                                 times.add(timestamps[k]);
@@ -608,10 +556,6 @@ public class TDTMKCAP extends AbstractKCAP {
                 x = xValues.get(times.get(k));
                 y = yValues.get(times.get(k));
                 z = zValues.get(times.get(k));
-
-                // if (tEntry.mode == TDTMMode.TRANSLATION) {
-                //     System.out.println(x + " | " + y + " | " + z);
-                // }
 
                 xMin = Math.min(xMin, x); xMax = Math.max(xMax, x);
                 yMin = Math.min(yMin, y); yMax = Math.max(yMax, y);
@@ -793,10 +737,25 @@ public class TDTMKCAP extends AbstractKCAP {
         return time3;
     }
     public float getTime4() {
-        return time4
-        		;
+        return time4;
     }
     
+    public void setTime1(float time1) {
+        this.time1 = time1;
+    }
+
+    public void setTime2(float time2) {
+        this.time2 = time2;
+    }
+
+    public void setTime3(float time3) {
+        this.time3 = time3;
+    }
+
+    public void setTime4(float time4) {
+        this.time4 = time4;
+    }
+
     @SuppressWarnings("exports")
 	public List<TDTMEntry> getTdtmEntries() {
         return Collections.unmodifiableList(tdtmEntry);

@@ -1,12 +1,19 @@
 package net.digimonworld.decodetools.res.payload;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
-import org.lwjgl.assimp.AINodeAnim;
 import org.lwjgl.assimp.AIQuatKey;
+import org.lwjgl.assimp.AIQuaternion;
+import org.lwjgl.assimp.AIVector3D;
 import org.lwjgl.assimp.AIVectorKey;
+import org.lwjgl.system.MemoryStack;
 
 import net.digimonworld.decodetools.core.Access;
 import net.digimonworld.decodetools.core.Utils;
@@ -60,6 +67,8 @@ public class VCTMPayload extends ResPayload {
         this(source, dataStart, parent);
     }
     
+    
+    //Read
     public VCTMPayload(Access source, int dataStart, AbstractKCAP parent) {
         super(parent);
         long start = source.getPosition();
@@ -80,19 +89,20 @@ public class VCTMPayload extends ResPayload {
         timeType = TimeType.values()[timeFlags & 0xF];
         
         unk4 = source.readByte();
- 
+        
         coordSize = source.readShort();
         entrySize = source.readShort();
         unknown4 = source.readFloat();
         unknown5 = source.readFloat();
         
         data1 = new VCTMEntry[numEntries];
-        data2 = new VCTMEntry[numEntries];
+        data2 = new VCTMEntry[numEntries];        
         
         source.setPosition(start + entriesStart);
-        for (int i = 0; i < numEntries; i++)
-            data1[i] = new VCTMEntry(source.readByteArray(entrySize));
-        
+        for (int i = 0; i < numEntries; i++) {
+        data1[i] = new VCTMEntry(source.readByteArray(entrySize));    
+         }
+                
         source.setPosition(start + coordStart);
         for (int i = 0; i < numEntries; i++)
             data2[i] = new VCTMEntry(source.readByteArray(coordSize));
@@ -100,32 +110,40 @@ public class VCTMPayload extends ResPayload {
         source.setPosition(Utils.align(source.getPosition(), 0x04));
     }
 
+        
     // Position/Scale (3 Values)
-    public VCTMPayload(AbstractKCAP parent, List<AIVectorKey> keys, double ticks, float scale) {
+    public VCTMPayload(AbstractKCAP parent, List<AIVectorKey> keys, float ticks, float scale) {
         super(parent);
-     
-        numEntries = keys.size();
+        numEntries = keys.size();    
+       
+        float[] timeValues = new float[numEntries];
+        for (int i = 0; i < numEntries; i++) {
+            timeValues[i] = (float) keys.get(i).mTime();         
+        }                   
 
+        float firstTime = timeValues[0]; // Get the first keyframe time
+        for (int i = 0; i < timeValues.length; i++) {
+            timeValues[i] -= firstTime; // Normalize time so first keyframe is at 0.0
+        }
+        // timeScale = getTimeScale(timeValues);
+        
+        timeScale = TimeScale.EVERY_10_FRAMES; // Match Vanilla
+    
         InitializeVCTM(3);
 
         data1 = new VCTMEntry[numEntries];
-        data2 = new VCTMEntry[numEntries];
+        data2 = new VCTMEntry[numEntries];                  
+        
+        for (int i = 0; i < numEntries; i++) {               
+      	byte[] timeBytes = { (byte)Math.round((timeValues[i] / ticks) * 33.3333f) };   
+        data1[i] = new VCTMEntry(timeBytes);
+       } 
         
         for (int i = 0; i < numEntries; i++) {
-            // Convert time data to uint16 bytes
-        	int newTime = (int)roundTime(keys.get(i).mTime(), keys.get(1).mTime());
-            //System.out.println(roundTime(keys.get(i).mTime(), keys.get(0).mTime()));
 
-            byte[] timeBytes = { (byte) (newTime), (byte) (newTime >> 8) };
-
-            data1[i] = new VCTMEntry(timeBytes);
-        }
-        
-        for (int i = 0; i < numEntries; i++) {
-            // Convert key data to float16 bytes
-            short xVal =  Float.floatToFloat16(keys.get(i).mValue().x() * scale);
-            short yVal =  Float.floatToFloat16(keys.get(i).mValue().y() * scale);
-            short zVal =  Float.floatToFloat16(keys.get(i).mValue().z() * scale);
+            short xVal =  toFloat16(keys.get(i).mValue().x());
+            short yVal =  toFloat16(keys.get(i).mValue().y());
+            short zVal =  toFloat16(keys.get(i).mValue().z());
 
             byte[] xBytes = { (byte) (xVal), (byte) (xVal >> 8) };
             byte[] yBytes = { (byte) (yVal), (byte) (yVal >> 8) };
@@ -133,90 +151,133 @@ public class VCTMPayload extends ResPayload {
 
             byte[] allBytes = {xBytes[0], xBytes[1], yBytes[0], yBytes[1], zBytes[0], zBytes[1] };
 
-            data2[i] = new VCTMEntry(allBytes);
-        }
-            
-    }
+            data2[i] = new VCTMEntry(allBytes);            
+             }            
+    		}
 
-    // Rotation
-    public VCTMPayload(AbstractKCAP parent, List<AIQuatKey> keys, double ticks) {
+    
+ // Rotation
+    public VCTMPayload(AbstractKCAP parent, List<AIQuatKey> keys, float ticks) {
         super(parent);
         
         numEntries = keys.size();
 
+        float[] timeValues = new float[numEntries];
+        for (int i = 0; i < numEntries; i++) {
+            timeValues[i] = (float) keys.get(i).mTime();
+        }      
+        
+        float firstTime = timeValues[0]; // Get the first keyframe time
+        for (int i = 0; i < timeValues.length; i++) {
+            timeValues[i] -= firstTime; // Normalize time so first keyframe is at 0.0
+        }
+        // Use vanilla time scale (EVERY_10_FRAMES)
+        timeScale = TimeScale.EVERY_10_FRAMES; 
+         
         InitializeVCTM(4);
 
         data1 = new VCTMEntry[numEntries];
         data2 = new VCTMEntry[numEntries];
         
-        for (int i = 0; i < numEntries; i++) {
-            // Convert time data to uint16 bytes
-        	int newTime = (int)roundTime(keys.get(i).mTime(), keys.get(1).mTime());
-            //System.out.println(roundTime(keys.get(i).mTime(), keys.get(0).mTime()));
-
-            byte[] timeBytes = { (byte) (newTime), (byte) (newTime >> 8) };
-
+        // Process time values as before.
+        for (int i = 0; i < numEntries; i++) {       	
+            byte[] timeBytes = { (byte)Math.round((timeValues[i] / ticks) * 33.3333f) };   
             data1[i] = new VCTMEntry(timeBytes);
+        }                         
+
+        // Build a temporary array of quaternions as floats
+        float[][] quats = new float[numEntries][4];
+        for (int i = 0; i < numEntries; i++) {       
+            AIQuatKey key = keys.get(i);
+            quats[i][0] = key.mValue().x();
+            quats[i][1] = key.mValue().y();
+            quats[i][2] = key.mValue().z();
+            quats[i][3] = key.mValue().w();
         }
         
-        for (int i = 0; i < numEntries; i++) {
-            // Convert key data to float16 bytes
-
-            short xVal =  Float.floatToFloat16(keys.get(i).mValue().x());
-            short yVal =  Float.floatToFloat16(keys.get(i).mValue().y());
-            short zVal =  Float.floatToFloat16(keys.get(i).mValue().z());
-            short wVal =  Float.floatToFloat16(keys.get(i).mValue().w());
+        // Ensure consistent quaternion orientation:
+        // For each keyframe (from the second onward), check the dot product with the previous keyframe.
+        // If negative, flip the quaternion.
+        for (int i = 1; i < numEntries; i++) {
+            float dot = quats[i-1][0] * quats[i][0] +
+                        quats[i-1][1] * quats[i][1] +
+                        quats[i-1][2] * quats[i][2] +
+                        quats[i-1][3] * quats[i][3];
+            if (dot < 0) {
+                quats[i][0] = -quats[i][0];
+                quats[i][1] = -quats[i][1];
+                quats[i][2] = -quats[i][2];
+                quats[i][3] = -quats[i][3];
+            }
+        }
+        
+        // Convert the adjusted quaternions to half-float (FLOAT16) and pack them into bytes.
+        for (int i = 0; i < numEntries; i++) {       
+            short xVal = toFloat16(quats[i][0]);
+            short yVal = toFloat16(quats[i][1]);
+            short zVal = toFloat16(quats[i][2]);
+            short wVal = toFloat16(quats[i][3]);
 
             byte[] xBytes = { (byte) (xVal), (byte) (xVal >> 8) };
             byte[] yBytes = { (byte) (yVal), (byte) (yVal >> 8) };
             byte[] zBytes = { (byte) (zVal), (byte) (zVal >> 8) };
             byte[] wBytes = { (byte) (wVal), (byte) (wVal >> 8) };
 
-            byte[] allBytes = {xBytes[0], xBytes[1], yBytes[0], yBytes[1], zBytes[0], zBytes[1], wBytes[0], wBytes[1] };
-
+            byte[] allBytes = {xBytes[0], xBytes[1], yBytes[0], yBytes[1],
+                               zBytes[0], zBytes[1], wBytes[0], wBytes[1]};
+     
             data2[i] = new VCTMEntry(allBytes);
         }
-            
+    }
+
+
+    public static short toFloat16(float value) {
+        int intBits = Float.floatToIntBits(value);
+        int sign = (intBits >>> 16) & 0x8000; 
+        int exp = ((intBits >>> 23) & 0xFF) - (127 - 15);
+        int mantissa = intBits & 0x007FFFFF;
+        
+        if (exp <= 0) {
+            // Underflow to zero
+            return (short) sign;
+        } else if (exp >= 31) {
+            // Overflow to max float16 value
+            return (short) (sign | 0x7C00);
+        } else {
+            return (short) (sign | (exp << 10) | (mantissa >>> 13));
+        }
     }
 
     private void InitializeVCTM(int components) {
-        coordSize = (short)(2*components); // byte length of float16 values
-        entrySize = 2; // byte length of uint16 values
+        coordSize = (short)(2*components); // byte length of coord values
+        entrySize = 1; // byte length of time values
         entriesStart = 0x20;
-        //coordStart = entriesStart + numEntries * entrySize;
         coordStart = Utils.align(entriesStart + numEntries * entrySize, 0x4);
         
         if (components == 3) {
             interpolationMode = InterpolationMode.LINEAR_3D;
         }
         else if (components == 4) {
-            interpolationMode = InterpolationMode.LINEAR_4D;
-            //interpolationMode = InterpolationMode.SPHERICAL_LINEAR;
+            //interpolationMode = InterpolationMode.LINEAR_4D;
+            interpolationMode = InterpolationMode.SPHERICAL_LINEAR;
         }
         else {
             interpolationMode = InterpolationMode.LINEAR_1D;
-        }              
+        }
         
         componentCount = (byte)(components & 0xff);
         componentType = ComponentType.FLOAT16;
         
-        timeScale = TimeScale.EVERY_1_FRAMES;
-        timeType = TimeType.UINT16;
+        timeType = TimeType.UINT8;
         
         unk4 = 0;
         unknown4 = 0;
         unknown5 = 0;
     }
 
-    public static float roundTime(double value, double firstValue) {
-        //return (float)Math.floor(((value * 1000f) / (3f * ticks)));
-        return (float)Math.round((value/firstValue)*10.0);
-        //return (float)(value*10.0);
-    }
-
     private float[] cachedFrameList = null;  
 
-    public float[] getFrameList() {
+    public float[] getFrameTimes() {
         if (cachedFrameList != null) {
             return cachedFrameList;
         }
@@ -225,14 +286,17 @@ public class VCTMPayload extends ResPayload {
 
         for (int i = 0; i < numEntries; i++) {
             byte[] data = data1[i].getData();
-            cachedFrameList[i] = convertBytesToTime(data) * timeScale.value;
+        cachedFrameList[i] = convertBytesToTime(data) * timeScale.value;
+             
         }
 
         return cachedFrameList;
     }
 
-    public float convertBytesToTime(byte[] data) {
+
     
+    public float convertBytesToTime(byte[] data) {
+        
         float finalVal;
         ByteBuffer buffer = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN); 
         
@@ -311,8 +375,7 @@ public class VCTMPayload extends ResPayload {
         return finalVal;
     }
 
-
-       public Byte[][] getRawFrameData(int entryIndex) {
+    public Byte[][] getRawFrameData(int entryIndex) {
         int compCount = getComponentCount();
 
         int dataSize = coordSize / compCount;
@@ -367,7 +430,7 @@ public class VCTMPayload extends ResPayload {
         return timeScale;
     }
     
-    public byte getUnk4() { 	
+    public byte getUnk4() {
         return unk4;
     }
     
@@ -469,6 +532,51 @@ public class VCTMPayload extends ResPayload {
         }
     }
     
+    
+    public TimeScale getTimeScale(float[] timeValues) {
+        if (timeValues == null || timeValues.length < 2) {
+            throw new IllegalArgumentException("timeValues array must contain at least two elements.");
+        }
+
+        List<Integer> gameTicks = new ArrayList<>();
+        for (float time : timeValues) {
+        	int tickValue = Math.round(time * 0.33f);  
+            gameTicks.add(tickValue);
+        }
+ 
+        List<Integer> intervals = new ArrayList<>();
+        for (int i = 1; i < gameTicks.size(); i++) {
+            int deltaTicks = gameTicks.get(i) - gameTicks.get(i - 1);
+            if (deltaTicks > 0) {
+                intervals.add(deltaTicks);
+            }
+        }
+
+        if (intervals.isEmpty()) {
+            throw new IllegalArgumentException("timeValues array must contain increasing time values.");
+        }
+        int sumIntervals = 0;
+        for (int interval : intervals) {
+            sumIntervals += interval;
+        }
+        int averageInterval = Math.round((float) sumIntervals / intervals.size());
+
+        // Frame-based TimeScale selection
+        if (averageInterval <= 1) return TimeScale.EVERY_1_FRAMES;
+        if (averageInterval <= 5) return TimeScale.EVERY_5_FRAMES;
+        if (averageInterval <= 6) return TimeScale.EVERY_6_FRAMES;
+        if (averageInterval <= 10) return TimeScale.EVERY_10_FRAMES;
+        if (averageInterval <= 12) return TimeScale.EVERY_12_FRAMES;
+        if (averageInterval <= 15) return TimeScale.EVERY_15_FRAMES;
+        if (averageInterval <= 20) return TimeScale.EVERY_20_FRAMES;
+        if (averageInterval <=30 && averageInterval % 30 == 0) return TimeScale.EVERY_30_FRAMES;
+        return TimeScale.EVERY_20_FRAMES; 
+    }
+
+
+
+
+
     enum TimeType {
         FLOAT,
         NONE,

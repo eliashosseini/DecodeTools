@@ -24,10 +24,10 @@ public class TDTMPanel extends PayloadPanel {
     private final JLabel qstmCountLabel = new JLabel("QSTM Count:");
     private final JLabel vctmCountLabel = new JLabel("VCTM Count:");
     
-    private final JSpinner time1spinner = new JSpinner(new SpinnerNumberModel(0, 0, Integer.MAX_VALUE, 1));
-    private final JSpinner time2spinner = new JSpinner(new SpinnerNumberModel(0, 0, Integer.MAX_VALUE, 1));
-    private final JSpinner time3spinner = new JSpinner(new SpinnerNumberModel(0, 0, Integer.MAX_VALUE, 1));
-    private final JSpinner time4spinner = new JSpinner(new SpinnerNumberModel(0, 0, Integer.MAX_VALUE, 1));
+    private final JSpinner time1spinner = new JSpinner(new SpinnerNumberModel(0.0, 0.0, Double.MAX_VALUE, 1.0));
+    private final JSpinner time2spinner = new JSpinner(new SpinnerNumberModel(0.0, 0.0, Double.MAX_VALUE, 1.0));
+    private final JSpinner time3spinner = new JSpinner(new SpinnerNumberModel(0.0, 0.0, Double.MAX_VALUE, 1.0));
+    private final JSpinner time4spinner = new JSpinner(new SpinnerNumberModel(0.0, 0.0, Double.MAX_VALUE, 1.0));
 
     private final JTable entryTable;
     private final DefaultTableModel tableModel;
@@ -99,9 +99,7 @@ public class TDTMPanel extends PayloadPanel {
         	// Set the layout for the scrollPane's viewport
         	scrollPane.setViewportView(panel);
 }
-
-
-
+  
     @Override
     public void setSelectedFile(Object file) {
         if (file == null)
@@ -119,11 +117,35 @@ public class TDTMPanel extends PayloadPanel {
 
         this.tdtm = (TDTMKCAP) file;
 
-        // Populate time spinners
-        time1spinner.setValue(tdtm.getTime1());
+        time1spinner.setValue(tdtm.getTime1()); 
         time2spinner.setValue(tdtm.getTime2());
         time3spinner.setValue(tdtm.getTime3());
         time4spinner.setValue(tdtm.getTime4());
+
+        // Re-add listeners
+        time1spinner.addChangeListener(e -> {
+            if (tdtm != null) {
+                tdtm.setTime1((float) ((Number) time1spinner.getValue()).doubleValue());
+            }
+        });
+
+        time2spinner.addChangeListener(e -> {
+            if (tdtm != null) {
+                tdtm.setTime2((float) ((Number) time2spinner.getValue()).doubleValue());
+            }
+        });
+
+        time3spinner.addChangeListener(e -> {
+            if (tdtm != null) {
+                tdtm.setTime3((float) ((Number) time3spinner.getValue()).doubleValue());
+            }
+        });
+
+        time4spinner.addChangeListener(e -> {
+            if (tdtm != null) {
+                tdtm.setTime4((float) ((Number) time4spinner.getValue()).doubleValue());
+            }
+        });
 
         // Update QSTM and VCTM count labels
         qstmCountLabel.setText("QSTM Count: " + tdtm.getQstmCount());
@@ -132,6 +154,7 @@ public class TDTMPanel extends PayloadPanel {
         // Populate the entry table
         updateTable();
     }
+
 
     private void updateTable() {
         tableModel.setRowCount(0); // Clear the table

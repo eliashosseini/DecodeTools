@@ -533,6 +533,7 @@ public class ModelImporter extends PayloadPanel {
                map.put((short) 2, (short) (scene.mNumMaterials() - 1));
                hsemPayload.add(new HSEMTextureEntry(map));
                materialId = mesh.mMaterialIndex();
+               hsemPayload.add(new HSEM07Entry((short) 0x000F, (short) 0,(byte) blendFlag, (byte) maskFlag,(short) 0));
            }
        
             AIVector3D.Buffer mVertices = mesh.mVertices();
@@ -652,10 +653,10 @@ public class ModelImporter extends PayloadPanel {
            xdioPayload.add(new XDIOPayload(null, faces, (short) 0x3001, (short) 0, 5));
 
            hsemPayload.add(new HSEMDrawEntry((short) 4, (short) i, (short) i, (short) 0, 0, faces.size() * 3));
-
+   
+            
        }
-        hsemPayload.add(new HSEM07Entry((short) 0x000F, (short) 0,(byte) blendFlag, (byte) maskFlag,(short) 0));
-
+   
         float[] headerArray = rootKCAP.getHSEM().get(0).getHeaderData();
         HSEMPayload hsemEntry = new HSEMPayload(null, hsemPayload, -1, (short) 0, (byte) 0, (byte) 0, headerArray, 1, 0);
 

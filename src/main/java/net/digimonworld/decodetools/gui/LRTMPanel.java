@@ -3,9 +3,6 @@ package net.digimonworld.decodetools.gui;
 import javax.swing.*;
 import javax.swing.GroupLayout;
 import javax.swing.GroupLayout.Alignment;
-import javax.swing.LayoutStyle.ComponentPlacement;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
 
 import net.digimonworld.decodetools.gui.util.JHexSpinner;
 import net.digimonworld.decodetools.res.payload.LRTMPayload;
@@ -13,6 +10,10 @@ import net.digimonworld.decodetools.res.payload.LRTMPayload.LRTMShadingType;
 import net.digimonworld.decodetools.res.payload.LRTMPayload.LRTMUnkownType;
 import javax.swing.plaf.basic.BasicSliderUI;
 import java.awt.*;
+import javax.swing.JTextField;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
+
 
 public class LRTMPanel extends PayloadPanel {
     private static final long serialVersionUID = 1L;
@@ -39,7 +40,7 @@ public class LRTMPanel extends PayloadPanel {
     private final JHexSpinner filterSpinner = new JHexSpinner();
     private final JTextField ambientValueLabel = new JTextField("0"); // Display normalized ambient value
     private final JTextField specularValueLabel = new JTextField("0"); // Display normalized specular value
-    private final JTextField  emitValueLabel = new JTextField ("0"); // Display normalized emit value
+    private final JTextField emitValueLabel = new JTextField ("0"); // Display normalized emit value
     private final JTextField spec0ValueLabel = new JTextField("0");
     private final JTextField spec1ValueLabel = new JTextField("0");
     
@@ -50,6 +51,7 @@ public class LRTMPanel extends PayloadPanel {
         ambientLabel.setLabelFor(ambientSlider);
         specularLabel.setLabelFor(specularSlider);
         emitLabel.setLabelFor(emitSlider);
+
 
         
         // Spec0 Slider Listener
@@ -80,7 +82,9 @@ public class LRTMPanel extends PayloadPanel {
                 selectedLRTM.setColor1(packedColor); // Update payload
                 ambientValueLabel.setText(String.format("%.3f", normalizedValue)); // Update display label
             }
-        });
+        });        
+
+
 
         // Diffusion Slider Listener
         specularSlider.addChangeListener(e -> {
@@ -102,6 +106,15 @@ public class LRTMPanel extends PayloadPanel {
                 emitValueLabel.setText(String.format("%.3f", normalizedValue)); // Update display label
             }
         });
+        
+        addTextFieldListener(ambientValueLabel, ambientSlider);
+        addTextFieldListener(specularValueLabel, specularSlider);
+        addTextFieldListener(emitValueLabel, emitSlider);
+        addTextFieldListener(spec0ValueLabel, spec0Slider);
+        addTextFieldListener(spec1ValueLabel, spec1Slider);
+
+
+
 
         filterSpinner.addChangeListener(a -> selectedLRTM.setColorFilter(((Long) filterSpinner.getValue()).intValue()));
         shadingSelector.addItemListener(a -> selectedLRTM.setShadingType((LRTMShadingType) a.getItem()));
@@ -206,6 +219,34 @@ public class LRTMPanel extends PayloadPanel {
 
     }
 
+    
+    private void updateSliderFromTextField(JTextField field, JSlider slider) {
+        try {
+            // Replace comma with dot for parsing in all locales
+            String input = field.getText().trim().replace(",", ".");
+            float value = Float.parseFloat(input);
+
+            if (value < 0.0f || value > 1.0f) throw new NumberFormatException();
+
+            int sliderValue = (int) (value * 1000);
+
+            System.out.println("DEBUG: Text field updated. New value: " + value + ", Slider before: " + slider.getValue());
+
+            if (slider.getValue() != sliderValue) {
+                slider.setValue(sliderValue);
+                System.out.println("DEBUG: Slider updated to: " + sliderValue);
+            } else {
+                System.out.println("DEBUG: Slider already at this value.");
+            }
+        } catch (NumberFormatException ex) {
+            System.out.println("DEBUG: Invalid input, resetting.");
+            field.setText(String.format("%.3f", slider.getValue() / 1000.0f)); 
+        }
+    }
+
+
+
+    
     @Override
     public void setSelectedFile(Object file) {
         this.selectedLRTM = null;
@@ -215,36 +256,49 @@ public class LRTMPanel extends PayloadPanel {
             filterSpinner.setValue(Integer.toUnsignedLong(selectedLRTM.getColorFilter()));
             shadingSelector.setSelectedItem(selectedLRTM.getShadingType());
             unk1Selector.setSelectedItem(selectedLRTM.getUnknownType());
-       
-            // Normalize packed RGBA values to set sliders
-            ambientSlider.setValue((int) (normalizeRGBA(selectedLRTM.getColor1()) * 1000));
-            specularSlider.setValue((int) (normalizeRGBA(selectedLRTM.getColor2()) * 1000));
 
-            // Ensure emit value does not decrease
+            // Update sliders ONLY IF values changed
+            updateSlider(ambientSlider, ambientValueLabel, normalizeRGBA(selectedLRTM.getColor1()));
+            updateSlider(specularSlider, specularValueLabel, normalizeRGBA(selectedLRTM.getColor2()));
+            updateSlider(spec0Slider, spec0ValueLabel, normalizeRGBA(selectedLRTM.getColor4()));
+            updateSlider(spec1Slider, spec1ValueLabel, normalizeRGBA(selectedLRTM.getColor5()));
+
+            // Special handling for emit value
             int packedRGB = selectedLRTM.getColor3() & 0x00FFFFFF; // Keep only RGB
-            float newEmitNormalized = normalizeRGB(packedRGB); // Get proper normalized value
-
-            spec0Slider.setValue((int) (normalizeRGBA(selectedLRTM.getColor4()) * 1000));
-            spec1Slider.setValue((int) (normalizeRGBA(selectedLRTM.getColor5()) * 1000));
-          
-            int previousEmitValue = emitSlider.getValue();
-            int newEmitValue = (int) (newEmitNormalized * 1000);
-
-            if (previousEmitValue != newEmitValue) {
-                emitSlider.setValue(newEmitValue); // Only update if necessary
-                emitValueLabel.setText(String.format("%.3f", newEmitNormalized));
-            }
+            float newEmitNormalized = normalizeRGB(packedRGB);
+            updateSlider(emitSlider, emitValueLabel, newEmitNormalized);
         }
     }
 
-    
+    private void addTextFieldListener(JTextField field, JSlider slider) {
+        // Ensure text updates slider when Enter is pressed
+        field.addActionListener(e -> updateSliderFromTextField(field, slider));
+
+        // Also trigger update when focus is lost (user clicks elsewhere)
+        field.addFocusListener(new FocusAdapter() {
+            @Override
+            public void focusLost(FocusEvent e) {
+                field.postActionEvent(); // Manually trigger ActionListener
+            }
+        });
+    }
+
+    private void updateSlider(JSlider slider, JTextField textField, float newValue) {
+        int newSliderValue = (int) (newValue * 1000);
+
+        if (slider.getValue() != newSliderValue) { // Only update if different
+            slider.setValue(newSliderValue);
+            textField.setText(String.format("%.3f", newValue)); // Format text field
+        }
+    }
+
+
     private float normalizeRGB(int rgb) {
         // Extract the Red component (or use Green/Blue since they should be equal)
         int r = (rgb >> 16) & 0xFF; 
         return r / 255.0f; // Convert to 0.0 - 1.0 range
     }
-
-    
+          
     private JSlider createStyledSlider() {
         JSlider slider = new JSlider(0, 1000, 500); // Slider values scaled from 0 to 1000
         slider.setUI(new CustomSliderUI(slider)); // Apply custom UI
